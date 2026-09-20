@@ -1,9 +1,9 @@
 import * as THREE from 'three';
 
 /**
- * First-person walk: WASD move, look via right-mouse drag (primary)
- * or optional pointer-lock after click. Pitch clamped near ±89° so
- * looking up/down never sticks near the horizon.
+ * First-person walk: WASD move.
+ * Primary look: pointer lock (click canvas) — mouse always looks while locked.
+ * Backup look: hold right mouse (no lock). Pitch via YXZ euler, nearly ±90°.
  */
 export class WalkControls {
   readonly euler = new THREE.Euler(0, 0, 0, 'YXZ');
@@ -25,9 +25,10 @@ export class WalkControls {
   private dragStartX = 0;
   private dragStartY = 0;
   private dragged = false;
-  private readonly pitchMin = -Math.PI / 2 + 0.04;
-  private readonly pitchMax = Math.PI / 2 - 0.04;
-  private readonly lookSens = 0.0024;
+  /** Nearly ±90° so look-down / look-up never feel stuck near the horizon. */
+  private readonly pitchMin = -Math.PI / 2 + 0.02;
+  private readonly pitchMax = Math.PI / 2 - 0.02;
+  private readonly lookSens = 0.003;
 
   constructor(camera: THREE.PerspectiveCamera, canvas: HTMLCanvasElement) {
     this.camera = camera;
@@ -84,7 +85,7 @@ export class WalkControls {
   private onPointerDown = (e: PointerEvent) => {
     if (!this.enabled) return;
     if (e.button === 2) {
-      // Right mouse: hold to look (no pointer lock required)
+      // Right mouse: hold to look (no pointer lock required) — backup mode
       this.rmbDown = true;
       this.looking = true;
       this.canvas.setPointerCapture(e.pointerId);
@@ -110,10 +111,9 @@ export class WalkControls {
       }
     }
     if (e.button === 0) {
-      // Short click without drag → optional pointer-lock capture
-      if (this.lmbDragLook && !this.dragged && !this.pointerLocked) {
-        // Don't auto-lock on every click (interferes with select); double-click or
-        // explicit "click to look" banner handles lock. Keep drag-look only.
+      // Short click without drag → request pointer lock (primary look mode)
+      if (this.lmbDragLook && !this.dragged && !this.pointerLocked && this.enabled) {
+        this.requestLock();
       }
       this.lmbDragLook = false;
     }
@@ -148,18 +148,18 @@ export class WalkControls {
 
   private applyLookDelta(dx: number, dy: number) {
     this.yaw -= dx * this.lookSens;
-    // Negative pitch = look down (YXZ). Clamp near ±90° so look-down always works.
+    // Mouse move down (positive movementY) → increase look-down (negative pitch in YXZ)
     this.pitch -= dy * this.lookSens;
     if (this.pitch < this.pitchMin) this.pitch = this.pitchMin;
     if (this.pitch > this.pitchMax) this.pitch = this.pitchMax;
     this.applyRotation();
   }
 
-  /** Request pointer lock (optional alternate look mode). */
+  /** Request pointer lock (primary look mode). */
   requestLock() {
     if (!this.enabled) return;
     if (document.pointerLockElement !== this.canvas) {
-      this.canvas.requestPointerLock();
+      void this.canvas.requestPointerLock();
     }
   }
 

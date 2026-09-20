@@ -3,6 +3,15 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { WalkControls } from './controls/WalkControls';
 import { loadDemoWorlds } from './data/demoLoader';
 import {
+  fetchDrives,
+  fetchFileContent,
+  loadApiFolderView,
+  pathTrailFromApiView,
+  probeLocalDrivesApi,
+  worldStubFromDrive,
+} from './data/localFsApi';
+import { worldFromWebkitFileList } from './data/webkitDirLoader';
+import {
   findFile,
   folderView,
   pathTrail,
@@ -30,17 +39,31 @@ renderer.outputColorSpace = THREE.SRGBColorSpace;
 const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 800);
 const dome = new DomeScene();
 const controls = new WalkControls(camera, canvas);
-const orbitControls = new OrbitControls(camera, canvas);
-orbitControls.enableDamping = true;
-orbitControls.dampingFactor = 0.08;
-orbitControls.enablePan = true;
-orbitControls.enableZoom = true;
-orbitControls.minDistance = 12;
-orbitControls.maxDistance = 160;
-orbitControls.maxPolarAngle = Math.PI * 0.92;
-orbitControls.enabled = false;
 const raycaster = new THREE.Raycaster();
 const pointer = new THREE.Vector2();
+
+/** OrbitControls is disposed while walking so it cannot eat events or fight quaternion. */
+let orbitControls: OrbitControls | null = null;
+
+function createOrbitControls(): OrbitControls {
+  const oc = new OrbitControls(camera, canvas);
+  oc.enableDamping = true;
+  oc.dampingFactor = 0.08;
+  oc.enablePan = true;
+  oc.enableZoom = true;
+  oc.minDistance = 12;
+  oc.maxDistance = 160;
+  oc.maxPolarAngle = Math.PI * 0.92;
+  oc.enabled = true;
+  return oc;
+}
+
+function disposeOrbitControls() {
+  if (!orbitControls) return;
+  orbitControls.enabled = false;
+  orbitControls.dispose();
+  orbitControls = null;
+}
 
 let worlds: WorldRoot[] = [];
 let world: WorldRoot | null = null;
@@ -58,10 +81,19 @@ let orbitPtrMoved = false;
 let orbitPtrX = 0;
 let orbitPtrY = 0;
 
+const folderInput = document.getElementById('folder-input') as HTMLInputElement | null;
+let localDrivesAvailable = false;
+
+const LOOK_HINT = 'Click view to look around · Esc to release';
+
 const hud = new Hud({
   onChipClick: (path) => void navigateTo(path),
   onExpandEllipsis: () => {
-    if (world) hud.renderPath(pathTrail(world, cwd), view);
+    if (world && view) {
+      const trail =
+        world.source === 'api' ? pathTrailFromApiView(world, view) : pathTrail(world, cwd);
+      hud.renderPath(trail, view);
+    }
   },
   onCopyPath: async (path) => {
     try {
@@ -72,7 +104,7 @@ const hud = new Hud({
     }
   },
   onEnterSelection: () => void activateSelection(),
-  onOpenEditor: () => openEditorForSelection(),
+  onOpenEditor: () => void openEditorForSelection(),
   onCloseInspector: () => {
     selection = null;
     dome.setSelection(null);
@@ -80,10 +112,17 @@ const hud = new Hud({
   },
   onSearch: (q) => {
     if (!world) return;
+    if (world.source === 'api') {
+      // Search within currently loaded tree cache
+      hud.showSearch(searchTree(world, cwd, q));
+      return;
+    }
     hud.showSearch(searchTree(world, cwd, q));
   },
   onSearchPick: (hit) => void onSearchHit(hit),
   onOpenFolder: () => void pickLocalFolder(),
+  onBrowseFolder: () => triggerWebkitBrowse(),
+  onLocalDrives: () => void openLocalDrives(),
   onLoadDemo: () => void bootDemo(),
   onCloseEditor: () => hud.hideEditor(),
   onDepthHover: () => {
@@ -105,22 +144,27 @@ function enterOrbit(fromDrive = false) {
   selection = null;
   exitInterior(false);
   controls.setEnabled(false);
+  disposeOrbitControls();
   dome.buildOrbit(worlds);
   camera.position.set(0, 28, 55);
+  // lookAt only allowed in orbit layer (never while walking)
   camera.lookAt(0, 0, 0);
+  orbitControls = createOrbitControls();
   orbitControls.target.set(0, 0, 0);
-  orbitControls.enabled = true;
   orbitControls.update();
   hud.setOrbitMode(true);
   hud.hideInspector();
   hud.hideEditor();
+  hud.setLookBanner(false);
   if (fromDrive) hud.toast('Back to orbit · pan/zoom freely · click a world to land');
 }
 
 async function landOnWorld(w: WorldRoot) {
   world = w;
   folderCache.clear();
-  orbitControls.enabled = false;
+  // Fully disconnect OrbitControls before walk look takes over
+  disposeOrbitControls();
+  controls.setEnabled(false);
   hud.toast(`Landing on ${w.name}…`);
   await navigateTo(w.path, true);
 }
@@ -129,13 +173,26 @@ async function navigateTo(path: string, fromOrbit = false) {
   if (!world) return;
   if (layer === 'interior') exitInterior(false);
 
-  const cached = folderCache.get(path);
-  const next = cached ?? folderView(world, path);
+  let next: FolderView | null = null;
+
+  if (world.source === 'api') {
+    try {
+      next = await loadApiFolderView(world, path);
+    } catch (e) {
+      console.error(e);
+      hud.toast(`Cannot open ${path}`);
+      return;
+    }
+  } else {
+    const cached = folderCache.get(path);
+    next = cached ?? folderView(world, path);
+    if (next) folderCache.set(path, next);
+  }
+
   if (!next) {
     hud.toast('Folder not found');
     return;
   }
-  folderCache.set(path, next);
 
   const prevPath = cwd;
   await dome.beginTransition(fromOrbit ? 550 : 400);
@@ -147,12 +204,15 @@ async function navigateTo(path: string, fromOrbit = false) {
   hud.hideInspector();
   hud.resetExpand();
 
-  const trail = pathTrail(world, cwd);
+  const trail =
+    world.source === 'api' ? pathTrailFromApiView(world, view) : pathTrail(world, cwd);
   dome.buildDome(view, trail);
   hud.setOrbitMode(false);
   hud.renderPath(trail, view);
-  hud.setLookBanner(true, 'Hold right mouse to look · drag also works · Esc unlocks / goes up');
+  hud.setLookBanner(true, LOOK_HINT);
 
+  // Ensure orbit is gone; walk owns the camera
+  disposeOrbitControls();
   controls.setEnabled(true);
   controls.resetAt(0, 5.5, Math.PI);
   controls.eyeHeight = 1.7;
@@ -187,27 +247,35 @@ async function activateSelection() {
   } else if (selection.kind === 'file' && selection.file && selection.species && hasInterior(selection.species)) {
     enterHtmlInterior(selection);
   } else if (selection.kind === 'file') {
-    openEditorForSelection();
+    void openEditorForSelection();
   }
 }
 
-function openEditorForSelection() {
+async function openEditorForSelection() {
   if (!selection?.file) return;
   const f = selection.file;
-  hud.showEditor(f.name, f.content ?? `(binary or empty — ${f.bytes} bytes)`);
+  let content = f.content;
+  if (!content && world?.source === 'api' && f.path) {
+    content = await fetchFileContent(f.path);
+    if (content) f.content = content;
+  }
+  hud.showEditor(f.name, content ?? `(binary or empty — ${f.bytes} bytes)`);
 }
 
 function enterHtmlInterior(lot: LotPlacement) {
   if (!lot.file) return;
   exitInterior(false);
   layer = 'interior';
+  disposeOrbitControls();
   const { group, spawn } = buildHtmlInterior(lot.file);
   interiorRoot = group;
   dome.scene.add(group);
   dome.root.visible = false;
+  controls.setEnabled(true);
   controls.resetAt(spawn.x, spawn.z, 0);
   controls.eyeHeight = spawn.y;
   camera.position.y = spawn.y;
+  hud.setLookBanner(true, LOOK_HINT);
   hud.toast(`Entered ${lot.name} (civic interior) · Esc to exit`);
 }
 
@@ -254,31 +322,89 @@ function selectLot(lot: LotPlacement) {
   hud.showInspector(lot);
 }
 
+function triggerWebkitBrowse() {
+  if (!folderInput) {
+    hud.toast('Browse not available in this browser');
+    return;
+  }
+  folderInput.value = '';
+  folderInput.click();
+}
+
+async function ingestWebkitFiles(fileList: FileList | null) {
+  if (!fileList || !fileList.length) return;
+  try {
+    hud.toast('Reading folder…');
+    const wr = await worldFromWebkitFileList(fileList);
+    upsertWorld(wr);
+    await landOnWorld(wr);
+    hud.toast(`Mapped “${wr.name}” via Browse · Esc to orbit`);
+  } catch (e) {
+    console.error(e);
+    hud.toast('Browse folder failed');
+  }
+}
+
+function upsertWorld(wr: WorldRoot) {
+  const idx = worlds.findIndex(
+    (x) => x.name === wr.name || x.path === wr.path || x.path === `/${wr.name}`,
+  );
+  if (idx >= 0) worlds[idx] = wr;
+  else worlds.push(wr);
+}
+
 async function pickLocalFolder() {
   const w = window as Window & {
     showDirectoryPicker?: () => Promise<FileSystemDirectoryHandle>;
   };
-  if (!w.showDirectoryPicker) {
-    hud.toast('File System Access not available — loading demo');
-    await bootDemo();
+  if (w.showDirectoryPicker) {
+    try {
+      const handle = await w.showDirectoryPicker();
+      const wr = await worldFromDirectoryHandle(handle);
+      upsertWorld(wr);
+      await landOnWorld(wr);
+      hud.toast(`Mapped “${wr.name}” as a world · Esc to orbit`);
+      return;
+    } catch (e) {
+      if ((e as Error).name === 'AbortError') return;
+      console.error(e);
+      hud.toast('Folder open failed — try Browse… or Local drives');
+      return;
+    }
+  }
+
+  // No File System Access API — offer webkitdirectory / Local drives (never silent demo)
+  if (folderInput) {
+    hud.toast('Picker unavailable — choose a folder (Browse) or use Local drives');
+    triggerWebkitBrowse();
+  } else if (localDrivesAvailable) {
+    hud.toast('Picker unavailable — use Local drives');
+    void openLocalDrives();
+  } else {
+    hud.toast('No folder picker here — use Local drives in npm run dev, or Demo');
+  }
+}
+
+async function openLocalDrives() {
+  if (!localDrivesAvailable) {
+    hud.toast('Local drives only work with npm run dev');
     return;
   }
   try {
-    const handle = await w.showDirectoryPicker();
-    const wr = await worldFromDirectoryHandle(handle);
-    // Add or replace world by folder name in the galaxy
-    const idx = worlds.findIndex(
-      (x) => x.name === wr.name || x.path === wr.path || x.path === `/${wr.name}`,
-    );
-    if (idx >= 0) worlds[idx] = wr;
-    else worlds.push(wr);
-    await landOnWorld(wr);
-    hud.toast(`Mapped “${wr.name}” as a world · Esc to orbit`);
-  } catch (e) {
-    if ((e as Error).name !== 'AbortError') {
-      console.error(e);
-      hud.toast('Folder open failed — try Demo');
+    const drives = await fetchDrives();
+    if (!drives.length) {
+      hud.toast('No allowed drives found under /home /media /mnt /tmp');
+      return;
     }
+    // Add each drive as an orbit world (API stubs); keep any non-api worlds
+    const kept = worlds.filter((w) => w.source !== 'api');
+    const apiWorlds = drives.map((d, i) => worldStubFromDrive(d, i));
+    worlds = [...kept, ...apiWorlds];
+    enterOrbit();
+    hud.toast(`${drives.length} local drives in orbit — click one to land`);
+  } catch (e) {
+    console.error(e);
+    hud.toast('Local drives failed');
   }
 }
 
@@ -355,6 +481,12 @@ canvas.addEventListener('pointerup', (e) => {
   }
 });
 
+if (folderInput) {
+  folderInput.addEventListener('change', () => {
+    void ingestWebkitFiles(folderInput.files);
+  });
+}
+
 document.getElementById('minimap')!.addEventListener('click', (e) => {
   if (!view || layer !== 'dome') return;
   const rect = (e.target as HTMLElement).getBoundingClientRect();
@@ -426,7 +558,7 @@ function frame() {
   if (layer === 'dome' || layer === 'interior') {
     const clamp = layer === 'interior' ? 40 : dome.floorRadius;
     controls.update(dt, clamp);
-  } else if (layer === 'orbit') {
+  } else if (layer === 'orbit' && orbitControls) {
     orbitControls.update();
   }
 
@@ -448,12 +580,16 @@ function frame() {
 
 void findFile;
 
-bootDemo()
-  .then(() => {
-    requestAnimationFrame(frame);
-  })
-  .catch((err) => {
-    console.error(err);
-    hud.toast('Failed to load demo');
-    requestAnimationFrame(frame);
-  });
+async function init() {
+  localDrivesAvailable = await probeLocalDrivesApi();
+  hud.setLocalDrivesVisible(localDrivesAvailable);
+
+  await bootDemo();
+  requestAnimationFrame(frame);
+}
+
+init().catch((err) => {
+  console.error(err);
+  hud.toast('Failed to load demo');
+  requestAnimationFrame(frame);
+});

@@ -11,6 +11,8 @@ export interface HudCallbacks {
   onSearch: (q: string) => void;
   onSearchPick: (hit: SearchHit) => void;
   onOpenFolder: () => void;
+  onBrowseFolder?: () => void;
+  onLocalDrives?: () => void;
   onLoadDemo: () => void;
   onCloseEditor: () => void;
   onDepthHover: (index: number | null) => void;
@@ -49,6 +51,13 @@ export class Hud {
       cb.onCopyPath(p);
     };
     document.getElementById('btn-open-folder')!.onclick = () => cb.onOpenFolder();
+    const browseBtn = document.getElementById('btn-browse');
+    if (browseBtn) browseBtn.onclick = () => cb.onBrowseFolder?.();
+    const drivesBtn = document.getElementById('btn-local-drives');
+    if (drivesBtn) {
+      drivesBtn.onclick = () => cb.onLocalDrives?.();
+      drivesBtn.classList.add('hidden'); // shown after probe
+    }
     document.getElementById('btn-demo')!.onclick = () => cb.onLoadDemo();
     document.getElementById('editor-close')!.onclick = () => cb.onCloseEditor();
     const hideBtn = document.getElementById('minimap-hide');
@@ -85,13 +94,18 @@ export class Hud {
         'Free orbit · click a labeled world (<strong>C:</strong> <strong>D:</strong> <strong>E:</strong> …) to land';
     } else {
       this.help.innerHTML =
-        '<strong>WASD</strong> move · <strong>Hold RMB</strong> (or drag) look · click globe/gate · <strong>Esc</strong> back · Shift run';
+        '<strong>WASD</strong> move · <strong>Click view</strong> to look (Esc release) · RMB hold backup · click globe/gate · Shift run';
     }
   }
 
   setLookBanner(visible: boolean, text?: string) {
     if (text) this.lookBanner.textContent = text;
     this.lookBanner.classList.toggle('hidden', !visible);
+  }
+
+  setLocalDrivesVisible(on: boolean) {
+    const btn = document.getElementById('btn-local-drives');
+    if (btn) btn.classList.toggle('hidden', !on);
   }
 
   renderPath(trail: AncestorRec[], view: FolderView | null) {

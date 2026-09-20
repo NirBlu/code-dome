@@ -13,12 +13,27 @@ npm run dev
 
 Open the URL Vite prints (default `http://localhost:5173`).
 
+**Local drives** (real Linux paths) only work while `npm run dev` is running — the Vite plugin serves `/api/drives` and `/api/tree`. A static production build keeps Open folder / Browse / Demo.
+
 Production build:
 
 ```bash
 npm run build
 npm run preview
 ```
+
+## Opening real folders / drives
+
+| Button | When to use | How it works |
+|---|---|---|
+| **Open folder** | Chromium with File System Access | `showDirectoryPicker` → walks the picked directory into a world |
+| **Browse…** | Any browser with `webkitdirectory` | Hidden `<input webkitdirectory>` → tree from `webkitRelativePath` |
+| **Local drives** | `npm run dev` on Linux | `GET /api/drives` lists `/home/*`, `/media/*` mounts, `/mnt`, `/tmp`; land on one and navigate with `GET /api/tree?path=…` |
+| **Demo** | Always | Multi-drive fixture (`C:` `D:` `E:` `~`) |
+
+If **Open folder** has no picker API, the app does **not** silently load Demo — it offers **Browse…** / **Local drives** instead.
+
+Security for the dev bridge: only paths under `/home`, `/media`, `/mnt`, `/tmp`. Collapsed as sealed industrial globes: `node_modules`, `.git`, `dist`, `build`.
 
 ## Demo galaxy (multi-drive)
 
@@ -31,14 +46,11 @@ On load the app fetches `/demo-tree.json`. Orbit shows several labeled worlds:
 | **E:** | External / media volume |
 | **~** | Home-style tree |
 
-`D:` in the demo is only a **stand-in** so the galaxy isn’t a single mystery planet. Use **Open folder** to map a real local folder as a world (File System Access API); that folder’s name appears as a labeled world in orbit (added or replaced by name).
+`D:` in the demo is only a **stand-in** so the galaxy isn’t a single mystery planet. Use **Open folder**, **Browse…**, or **Local drives** to map real folders.
 
 Landing puts you on that world’s **root** dome. Child folders are sealed globes; the parent gate / Esc climbs toward orbit.
 
 Depth rings: `D: → project → src → components` = depths `0 → 1 → 2 → 3`.
-
-- **Demo** reloads the multi-drive fixture.
-- **Open folder** adds/replaces a world from a real directory.
 
 ## Visuals
 
@@ -54,14 +66,20 @@ Depth rings: `D: → project → src → components` = depths `0 → 1 → 2 →
 |---|---|
 | Orbit: drag / scroll / right-drag | Free orbit, zoom, pan around worlds |
 | Click labeled world | Land on that drive root |
-| **Hold right mouse** (or left-drag) | Look around in a dome — no pointer lock required |
+| **Click the 3D view** | Pointer-lock look (primary) — mouse always looks while locked |
+| **Esc** | Release pointer lock first; Esc again goes up / exits interior |
+| Hold right mouse | Backup look without lock |
+| Left-drag | Also looks (clicks still select if you don’t drag) |
 | WASD · Shift | Walk · run |
 | Click child globe | Enter folder |
 | Click parent gate / Esc / Backspace | `cd ..` (or return to orbit at drive root) |
-| Esc (if pointer-locked) | Unlock first, then Esc again to go up |
 | Click building | Select + inspector |
 | Double-click / Enter | Civic interior or editor pane |
 | Q/E or wheel | Eye height |
+
+On-screen while in a dome: **Click view to look around · Esc to release**.
+
+OrbitControls is fully disposed while walking so it cannot steal mouse events or fight camera pitch.
 
 ## Interiors
 
@@ -80,4 +98,4 @@ Other readable types use typed closed shells; select them and use **Open in edit
 
 ## Stack
 
-Vite + TypeScript + Three.js · HTML/CSS HUD overlay · GLSL sky / glass · OrbitControls in galaxy.
+Vite + TypeScript + Three.js · HTML/CSS HUD overlay · GLSL sky / glass · OrbitControls in galaxy · optional Vite local-FS middleware in dev.

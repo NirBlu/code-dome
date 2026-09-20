@@ -50,6 +50,10 @@ export interface WorldRoot {
   name: string;
   tint: string;
   tree: TreeFolder;
+  /** Where this world came from. */
+  source?: 'demo' | 'fsa' | 'webkit' | 'api';
+  /** Absolute host path for API-backed worlds (Vite /api/tree). */
+  apiRoot?: string;
 }
 
 export type SpeciesId =

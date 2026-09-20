@@ -69,7 +69,7 @@ export function indexDemoPayload(raw: unknown): WorldRoot[] {
       },
       '',
     );
-    return { path: tree.path, name: tree.name, tint: tree.tint, tree };
+    return { path: tree.path, name: tree.name, tint: tree.tint, tree, source: 'demo' };
   });
 }
 
@@ -282,5 +282,5 @@ export async function worldFromDirectoryHandle(
 
   const tree = await readDir(handle, rootPath);
   tree.tint = '#6a9';
-  return { path: tree.path, name: tree.name, tint: tree.tint, tree };
+  return { path: tree.path, name: tree.name, tint: tree.tint, tree, source: 'fsa' };
 }
