@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { WalkControls } from './controls/WalkControls';
 import { loadDemoWorlds } from './data/demoLoader';
 import {
@@ -26,9 +27,18 @@ renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 
-const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 600);
+const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 800);
 const dome = new DomeScene();
 const controls = new WalkControls(camera, canvas);
+const orbitControls = new OrbitControls(camera, canvas);
+orbitControls.enableDamping = true;
+orbitControls.dampingFactor = 0.08;
+orbitControls.enablePan = true;
+orbitControls.enableZoom = true;
+orbitControls.minDistance = 12;
+orbitControls.maxDistance = 160;
+orbitControls.maxPolarAngle = Math.PI * 0.92;
+orbitControls.enabled = false;
 const raycaster = new THREE.Raycaster();
 const pointer = new THREE.Vector2();
 
@@ -41,6 +51,12 @@ let selection: LotPlacement | null = null;
 let interiorRoot: THREE.Object3D | null = null;
 /** In-memory ancestor trail cache for instant Back */
 const folderCache = new Map<string, FolderView>();
+
+/** Track orbit click vs drag so free camera doesn't accidental-land. */
+let orbitPtrDown = false;
+let orbitPtrMoved = false;
+let orbitPtrX = 0;
+let orbitPtrY = 0;
 
 const hud = new Hud({
   onChipClick: (path) => void navigateTo(path),
@@ -78,7 +94,7 @@ const hud = new Hud({
 async function bootDemo() {
   worlds = await loadDemoWorlds();
   enterOrbit();
-  hud.toast('Drive world ready — click D: to land');
+  hud.toast('Demo galaxy · C: D: E: ~ — click a world to land');
 }
 
 function enterOrbit(fromDrive = false) {
@@ -90,17 +106,21 @@ function enterOrbit(fromDrive = false) {
   exitInterior(false);
   controls.setEnabled(false);
   dome.buildOrbit(worlds);
-  camera.position.set(0, 22, 48);
+  camera.position.set(0, 28, 55);
   camera.lookAt(0, 0, 0);
+  orbitControls.target.set(0, 0, 0);
+  orbitControls.enabled = true;
+  orbitControls.update();
   hud.setOrbitMode(true);
   hud.hideInspector();
   hud.hideEditor();
-  if (fromDrive) hud.toast('Back to orbit · click a drive world to land');
+  if (fromDrive) hud.toast('Back to orbit · pan/zoom freely · click a world to land');
 }
 
 async function landOnWorld(w: WorldRoot) {
   world = w;
   folderCache.clear();
+  orbitControls.enabled = false;
   hud.toast(`Landing on ${w.name}…`);
   await navigateTo(w.path, true);
 }
@@ -131,9 +151,10 @@ async function navigateTo(path: string, fromOrbit = false) {
   dome.buildDome(view, trail);
   hud.setOrbitMode(false);
   hud.renderPath(trail, view);
+  hud.setLookBanner(true, 'Hold right mouse to look · drag also works · Esc unlocks / goes up');
 
   controls.setEnabled(true);
-  controls.resetAt(0, 7, Math.PI);
+  controls.resetAt(0, 5.5, Math.PI);
   controls.eyeHeight = 1.7;
 
   if (fromOrbit) {
@@ -245,9 +266,14 @@ async function pickLocalFolder() {
   try {
     const handle = await w.showDirectoryPicker();
     const wr = await worldFromDirectoryHandle(handle);
-    worlds = [wr];
+    // Add or replace world by folder name in the galaxy
+    const idx = worlds.findIndex(
+      (x) => x.name === wr.name || x.path === wr.path || x.path === `/${wr.name}`,
+    );
+    if (idx >= 0) worlds[idx] = wr;
+    else worlds.push(wr);
     await landOnWorld(wr);
-    hud.toast(`Opened ${wr.name}`);
+    hud.toast(`Mapped “${wr.name}” as a world · Esc to orbit`);
   } catch (e) {
     if ((e as Error).name !== 'AbortError') {
       console.error(e);
@@ -264,25 +290,61 @@ function onPointer(clientX: number, clientY: number) {
 }
 
 let lastClick = 0;
+let domePtrDown = false;
+let domePtrX = 0;
+let domePtrY = 0;
+
 canvas.addEventListener('pointerdown', (e) => {
-  if (e.button !== 0) return;
-  const useCenter = controls.pointerLocked;
-  const hit = useCenter
-    ? (() => {
-        pointer.set(0, 0);
-        raycaster.setFromCamera(pointer, camera);
-        return dome.pick(raycaster);
-      })()
-    : onPointer(e.clientX, e.clientY);
-
-  if (!hit) return;
-
-  if (layer === 'orbit' && hit.world) {
-    void landOnWorld(hit.world);
+  if (layer === 'orbit') {
+    if (e.button === 0) {
+      orbitPtrDown = true;
+      orbitPtrMoved = false;
+      orbitPtrX = e.clientX;
+      orbitPtrY = e.clientY;
+    }
     return;
   }
 
-  if (hit.lot) {
+  if (e.button !== 0) return;
+  domePtrDown = true;
+  domePtrX = e.clientX;
+  domePtrY = e.clientY;
+});
+
+canvas.addEventListener('pointermove', (e) => {
+  if (layer === 'orbit' && orbitPtrDown) {
+    if (Math.hypot(e.clientX - orbitPtrX, e.clientY - orbitPtrY) > 5) {
+      orbitPtrMoved = true;
+    }
+  }
+});
+
+canvas.addEventListener('pointerup', (e) => {
+  if (layer === 'orbit' && e.button === 0 && orbitPtrDown) {
+    orbitPtrDown = false;
+    if (!orbitPtrMoved) {
+      const hit = onPointer(e.clientX, e.clientY);
+      if (hit?.world) void landOnWorld(hit.world);
+    }
+    return;
+  }
+
+  if ((layer === 'dome' || layer === 'interior') && e.button === 0 && domePtrDown) {
+    domePtrDown = false;
+    // Skip select if this was a look-drag
+    if (controls.wasDragLook()) return;
+    if (Math.hypot(e.clientX - domePtrX, e.clientY - domePtrY) > 6) return;
+
+    const useCenter = controls.pointerLocked;
+    const hit = useCenter
+      ? (() => {
+          pointer.set(0, 0);
+          raycaster.setFromCamera(pointer, camera);
+          return dome.pick(raycaster);
+        })()
+      : onPointer(e.clientX, e.clientY);
+
+    if (!hit?.lot) return;
     const now = performance.now();
     const dbl = now - lastClick < 350 && selection?.id === hit.lot.id;
     lastClick = now;
@@ -300,9 +362,14 @@ document.getElementById('minimap')!.addEventListener('click', (e) => {
   const my = e.clientY - rect.top;
   const W = rect.width;
   const H = rect.height;
-  const scale = ((W / 2 - 8) / dome.floorRadius) * 0.92;
-  const x = (mx - W / 2) / scale;
-  const z = (my - H / 2) / scale;
+  // Account for legend strip (~28px) matching Hud.drawMinimap layout
+  const mapH = H - 28;
+  const mapSize = Math.min(W, mapH) - 16;
+  const cx = W / 2;
+  const cy = mapH / 2 + 4;
+  const scale = (mapSize / 2 / dome.floorRadius) * 0.95;
+  const x = (mx - cx) / scale;
+  const z = (my - cy) / scale;
   let best: LotPlacement | null = null;
   let bestD = Infinity;
   for (const lot of dome.lots) {
@@ -323,12 +390,18 @@ document.getElementById('minimap')!.addEventListener('click', (e) => {
 window.addEventListener('keydown', (e) => {
   if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
   if (e.code === 'Escape') {
+    // Unlock pointer first if locked
+    if (controls.unlockPointer()) {
+      hud.toast('Pointer unlocked · Esc again to go up');
+      return;
+    }
     if (layer === 'interior') {
       exitInterior(true);
       if (selection) controls.resetAt(selection.x, selection.z + 3, 0);
       return;
     }
     document.getElementById('editor-pane')!.classList.add('hidden');
+    if (layer === 'orbit') return;
     void goUp();
     return;
   }
@@ -337,7 +410,7 @@ window.addEventListener('keydown', (e) => {
   }
   if (e.code === 'Backspace' && !(e.target instanceof HTMLInputElement)) {
     e.preventDefault();
-    void goUp();
+    if (layer !== 'orbit') void goUp();
   }
 });
 
@@ -354,10 +427,7 @@ function frame() {
     const clamp = layer === 'interior' ? 40 : dome.floorRadius;
     controls.update(dt, clamp);
   } else if (layer === 'orbit') {
-    camera.position.x = Math.sin(performance.now() * 0.00008) * 48;
-    camera.position.z = Math.cos(performance.now() * 0.00008) * 48;
-    camera.position.y = 22;
-    camera.lookAt(0, 0, 0);
+    orbitControls.update();
   }
 
   dome.updateLabels(camera);

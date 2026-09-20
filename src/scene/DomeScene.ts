@@ -102,7 +102,7 @@ export class DomeScene {
       } else if (lot.kind === 'gate') {
         this.content.add(createGate(lot, radius));
         // Gate label always prominent — destination is the exit cue
-        this.addWorldLabel(lot.name, 0, 6.2, -radius + 1.2, 1.25, true);
+        this.addWorldLabel(lot.name, 0, 6.2, -radius + 1.0, 1.25, true);
       } else if (lot.kind === 'plaza') {
         this.addWorldLabel(view.name, 0, 2.0, 0, 1.25);
       }
@@ -121,10 +121,12 @@ export class DomeScene {
     this.spaceSky = createSpaceSky(240);
     this.content.add(this.spaceSky);
 
+    const n = Math.max(1, worlds.length);
+    const orbitR = n <= 2 ? 22 : n <= 4 ? 30 : 36;
     worlds.forEach((w, i) => {
-      const ang = (i / Math.max(1, worlds.length)) * Math.PI * 2;
-      const x = Math.sin(ang) * 28;
-      const z = Math.cos(ang) * 28;
+      const ang = (i / n) * Math.PI * 2 - Math.PI / 2;
+      const x = Math.sin(ang) * orbitR;
+      const z = Math.cos(ang) * orbitR;
       const globe = createDrivePlanet(w.tint, 6.5);
       globe.position.set(x, 0, z);
       globe.userData.world = w;
@@ -153,7 +155,8 @@ export class DomeScene {
       atmo.position.copy(globe.position);
       this.content.add(atmo);
 
-      this.addWorldLabel(w.name, x, 9, z, 2.1, true);
+      // Clear nameplate above world
+      this.addWorldLabel(w.name, x, 10.2, z, 2.4, true);
       this.lots.push({
         id: `world:${w.path}`,
         kind: 'folder',

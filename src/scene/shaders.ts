@@ -194,6 +194,97 @@ export function createToonBodyMaterial(color: number, opts?: { metalness?: numbe
   });
 }
 
+/** Procedural B&W skyscraper window-grid facade (shared atlas). */
+let _windowTex: THREE.CanvasTexture | null = null;
+export function makeWindowFacadeTexture(): THREE.CanvasTexture {
+  if (_windowTex) return _windowTex;
+  const size = 256;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d')!;
+  // Dark facade
+  ctx.fillStyle = '#0a0a0a';
+  ctx.fillRect(0, 0, size, size);
+  const cols = 8;
+  const rows = 12;
+  const padX = 4;
+  const padY = 3;
+  const cellW = size / cols;
+  const cellH = size / rows;
+  for (let row = 0; row < rows; row++) {
+    for (let col = 0; col < cols; col++) {
+      // Slight variation so it reads as lit windows
+      const lit = ((row * 17 + col * 31) % 7) !== 0;
+      const g = lit ? 220 + ((row * col) % 35) : 40;
+      ctx.fillStyle = `rgb(${g},${g},${g})`;
+      const x = col * cellW + padX;
+      const y = row * cellH + padY;
+      const w = cellW - padX * 2;
+      const h = cellH - padY * 2;
+      ctx.fillRect(x, y, w, h);
+    }
+  }
+  // Mullion lines
+  ctx.strokeStyle = '#000';
+  ctx.lineWidth = 2;
+  for (let c = 0; c <= cols; c++) {
+    ctx.beginPath();
+    ctx.moveTo(c * cellW, 0);
+    ctx.lineTo(c * cellW, size);
+    ctx.stroke();
+  }
+  for (let r = 0; r <= rows; r++) {
+    ctx.beginPath();
+    ctx.moveTo(0, r * cellH);
+    ctx.lineTo(size, r * cellH);
+    ctx.stroke();
+  }
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = 4;
+  tex.needsUpdate = true;
+  _windowTex = tex;
+  return tex;
+}
+
+/** Hue from stable name hash → tint color for building shells. */
+export function buildingTintFromName(name: string): THREE.Color {
+  let h = 2166136261 >>> 0;
+  for (let i = 0; i < name.length; i++) {
+    h ^= name.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  const hue = (h % 360) / 360;
+  const sat = 0.42 + ((h >> 8) % 40) / 100;
+  const lit = 0.48 + ((h >> 16) % 25) / 100;
+  return new THREE.Color().setHSL(hue, sat, lit);
+}
+
+/**
+ * Office / civic / generic shell: B&W window grid multiplied by per-building tint.
+ * Uses MeshStandardMaterial map * color (Three multiplies map by color).
+ */
+export function createWindowFacadeMaterial(
+  name: string,
+  opts?: { metalness?: number; roughness?: number; floors?: number },
+): THREE.MeshStandardMaterial {
+  const tint = buildingTintFromName(name);
+  const map = makeWindowFacadeTexture().clone();
+  map.needsUpdate = true;
+  const floors = opts?.floors ?? 6;
+  map.repeat.set(2, Math.max(2, floors / 3));
+  return new THREE.MeshStandardMaterial({
+    color: tint,
+    map,
+    metalness: opts?.metalness ?? 0.22,
+    roughness: opts?.roughness ?? 0.48,
+    emissive: tint.clone().multiplyScalar(0.12),
+    emissiveIntensity: 0.35,
+  });
+}
+
 /** Civic / sealed-globe glass with fresnel rim (self-contained GLSL). */
 export function createGlassMaterial(color: number | THREE.Color, opacity = 0.55): THREE.ShaderMaterial {
   const c = color instanceof THREE.Color ? color : new THREE.Color(color);

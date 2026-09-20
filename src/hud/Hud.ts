@@ -14,6 +14,7 @@ export interface HudCallbacks {
   onLoadDemo: () => void;
   onCloseEditor: () => void;
   onDepthHover: (index: number | null) => void;
+  onToggleMinimap?: () => void;
 }
 
 export class Hud {
@@ -33,8 +34,12 @@ export class Hud {
   private editorTitle = document.getElementById('editor-title')!;
   private editorBody = document.getElementById('editor-body')!;
   private minimap = document.getElementById('minimap') as HTMLCanvasElement;
+  private minimapWrap = document.getElementById('minimap-wrap')!;
+  private lookBanner = document.getElementById('look-banner')!;
+  private help = document.getElementById('help')!;
   private expandMiddle = false;
   private cb: HudCallbacks;
+  private minimapHidden = false;
 
   constructor(cb: HudCallbacks) {
     this.cb = cb;
@@ -46,6 +51,15 @@ export class Hud {
     document.getElementById('btn-open-folder')!.onclick = () => cb.onOpenFolder();
     document.getElementById('btn-demo')!.onclick = () => cb.onLoadDemo();
     document.getElementById('editor-close')!.onclick = () => cb.onCloseEditor();
+    const hideBtn = document.getElementById('minimap-hide');
+    if (hideBtn) {
+      hideBtn.onclick = () => {
+        this.minimapHidden = !this.minimapHidden;
+        this.minimapWrap.classList.toggle('collapsed', this.minimapHidden);
+        hideBtn.textContent = this.minimapHidden ? 'Show map' : 'Hide';
+        cb.onToggleMinimap?.();
+      };
+    }
     this.searchInput.addEventListener('input', () => cb.onSearch(this.searchInput.value));
     this.searchInput.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') {
@@ -61,7 +75,23 @@ export class Hud {
     this.ribbon.classList.toggle('hidden', on);
     this.counts.classList.toggle('hidden', on);
     this.depth.classList.toggle('hidden', on);
-    this.minimap.classList.toggle('hidden', on);
+    this.minimapWrap.classList.toggle('hidden', on);
+    this.lookBanner.classList.toggle('hidden', on);
+    this.help.classList.toggle('orbit', on);
+    if (on) {
+      this.help.innerHTML =
+        '<strong>Orbit</strong> · drag to orbit · scroll zoom · right-drag pan · click a world to land · Esc back';
+      this.orbitHint.innerHTML =
+        'Free orbit · click a labeled world (<strong>C:</strong> <strong>D:</strong> <strong>E:</strong> …) to land';
+    } else {
+      this.help.innerHTML =
+        '<strong>WASD</strong> move · <strong>Hold RMB</strong> (or drag) look · click globe/gate · <strong>Esc</strong> back · Shift run';
+    }
+  }
+
+  setLookBanner(visible: boolean, text?: string) {
+    if (text) this.lookBanner.textContent = text;
+    this.lookBanner.classList.toggle('hidden', !visible);
   }
 
   renderPath(trail: AncestorRec[], view: FolderView | null) {
@@ -71,8 +101,6 @@ export class Hud {
     const chips: AncestorRec[] = [...trail];
     let display: Array<AncestorRec | 'ellipsis'> = chips;
     if (!this.expandMiddle && chips.length > 4) {
-      display = [chips[0], 'ellipsis', chips[chips.length - 2], chips[chips.length - 1]];
-      // Never collapse root or cwd — keep first and last always; if length>4 also keep second-last visible with ellipsis
       display = [chips[0], 'ellipsis', chips[chips.length - 1]];
     }
 
@@ -132,7 +160,6 @@ export class Hud {
 
     const stack = document.createElement('div');
     stack.className = 'rings';
-    // Outermost ring = root (first), innermost = cwd (last)
     trail.forEach((a, i) => {
       const ring = document.createElement('button');
       const size = 28 - i * Math.min(3, 20 / Math.max(1, trail.length));
@@ -257,30 +284,45 @@ export class Hud {
     camZ: number,
     yaw: number,
   ) {
+    if (this.minimapHidden) return;
     const ctx = this.minimap.getContext('2d')!;
     const W = this.minimap.width;
     const H = this.minimap.height;
     ctx.clearRect(0, 0, W, H);
-    ctx.fillStyle = 'rgba(8,14,20,0.82)';
-    ctx.beginPath();
-    ctx.arc(W / 2, H / 2, W / 2 - 2, 0, Math.PI * 2);
+
+    // High-contrast panel background
+    ctx.fillStyle = 'rgba(4, 10, 16, 0.94)';
+    roundRect(ctx, 0, 0, W, H, 12);
     ctx.fill();
-    ctx.strokeStyle = '#3a5060';
+    ctx.strokeStyle = '#6ab0d8';
+    ctx.lineWidth = 3;
+    roundRect(ctx, 1.5, 1.5, W - 3, H - 3, 11);
+    ctx.stroke();
+
+    const mapSize = Math.min(W, H - 36) - 16;
+    const cx = W / 2;
+    const cy = (H - 28) / 2 + 4;
+    const scale = (mapSize / 2 / floorRadius) * 0.95;
+    const to = (x: number, z: number) => ({
+      x: cx + x * scale,
+      y: cy + z * scale,
+    });
+
+    // Floor disk
+    ctx.fillStyle = '#1a2834';
+    ctx.beginPath();
+    ctx.arc(cx, cy, mapSize / 2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#4a7088';
     ctx.lineWidth = 2;
     ctx.stroke();
 
-    const scale = ((W / 2 - 8) / floorRadius) * 0.92;
-    const to = (x: number, z: number) => ({
-      x: W / 2 + x * scale,
-      y: H / 2 + z * scale,
-    });
-
-    // plaza
+    // Plaza
     {
       const p = to(0, 0);
-      ctx.fillStyle = '#4a5a66';
+      ctx.fillStyle = '#7a8a96';
       ctx.beginPath();
-      ctx.arc(p.x, p.y, 5, 0, Math.PI * 2);
+      ctx.arc(p.x, p.y, 6, 0, Math.PI * 2);
       ctx.fill();
     }
 
@@ -288,33 +330,77 @@ export class Hud {
       const p = to(lot.x, lot.z);
       if (lot.kind === 'folder') {
         ctx.strokeStyle = lot.tint || '#8cf';
+        ctx.fillStyle = (lot.tint || '#8cf') + '44';
+        ctx.lineWidth = 2.5;
         ctx.beginPath();
-        ctx.arc(p.x, p.y, Math.max(3, lot.radius * scale), 0, Math.PI * 2);
+        ctx.arc(p.x, p.y, Math.max(4, lot.radius * scale), 0, Math.PI * 2);
+        ctx.fill();
         ctx.stroke();
       } else if (lot.kind === 'file') {
         ctx.fillStyle = speciesDot(lot.species);
-        ctx.fillRect(p.x - 2, p.y - 2, 4, 4);
+        ctx.fillRect(p.x - 3, p.y - 3, 6, 6);
       } else if (lot.kind === 'gate') {
-        // notch at -Z
-        ctx.fillStyle = '#9ab';
-        ctx.fillRect(p.x - 5, p.y - 3, 10, 6);
+        ctx.fillStyle = '#c8e4ff';
+        ctx.fillRect(p.x - 7, p.y - 4, 14, 8);
       }
     }
 
-    // camera triangle
+    // Camera triangle — bright
     const c = to(camX, camZ);
     ctx.save();
     ctx.translate(c.x, c.y);
     ctx.rotate(-yaw);
     ctx.fillStyle = '#ffe08a';
+    ctx.strokeStyle = '#000';
+    ctx.lineWidth = 1.5;
     ctx.beginPath();
-    ctx.moveTo(0, -7);
-    ctx.lineTo(5, 6);
-    ctx.lineTo(-5, 6);
+    ctx.moveTo(0, -10);
+    ctx.lineTo(7, 8);
+    ctx.lineTo(-7, 8);
     ctx.closePath();
     ctx.fill();
+    ctx.stroke();
     ctx.restore();
+
+    // Legend strip
+    ctx.fillStyle = 'rgba(0,0,0,0.55)';
+    ctx.fillRect(6, H - 26, W - 12, 20);
+    ctx.font = '600 10px system-ui,sans-serif';
+    ctx.textBaseline = 'middle';
+    let lx = 12;
+    const ly = H - 16;
+    const items: [string, string][] = [
+      ['#8cf', 'globe'],
+      ['#6a8aaa', 'file'],
+      ['#c8e4ff', 'gate'],
+      ['#ffe08a', 'you'],
+    ];
+    for (const [col, label] of items) {
+      ctx.fillStyle = col;
+      ctx.fillRect(lx, ly - 4, 8, 8);
+      lx += 12;
+      ctx.fillStyle = '#d8e8f6';
+      ctx.fillText(label, lx, ly);
+      lx += ctx.measureText(label).width + 10;
+    }
   }
+}
+
+function roundRect(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  r: number,
+) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
 }
 
 function speciesDot(s?: string): string {

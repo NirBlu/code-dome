@@ -16,8 +16,8 @@
           <div id="counts"></div>
           <div id="depth-meter" title="Depth / membranes"></div>
           <input id="search" type="search" placeholder="Search cwd…" autocomplete="off" />
-          <button id="btn-open-folder" type="button" title="Open local folder">Open folder</button>
-          <button id="btn-demo" type="button" title="Load demo tree">Demo</button>
+          <button id="btn-open-folder" type="button" title="Map a local folder as a world">Open folder</button>
+          <button id="btn-demo" type="button" title="Load multi-drive demo">Demo</button>
         </header>
         <aside id="inspector" class="hidden">
           <div id="inspector-head">
@@ -32,8 +32,15 @@
           <div id="insp-actions"></div>
         </aside>
         <div id="search-results" class="hidden"></div>
-        <canvas id="minimap" width="160" height="160"></canvas>
-        <div id="orbit-hint" class="hidden">Click drive world <strong>D:</strong> to land on the drive root</div>
+        <div id="minimap-wrap">
+          <div id="minimap-head">
+            <span>Navigator</span>
+            <button id="minimap-hide" type="button">Hide</button>
+          </div>
+          <canvas id="minimap" width="240" height="260"></canvas>
+        </div>
+        <div id="look-banner" class="hidden">Hold <strong>right mouse</strong> to look · or drag · Esc unlocks pointer lock</div>
+        <div id="orbit-hint" class="hidden">Free orbit · click a labeled world to land</div>
         <div id="crosshair"></div>
         <div id="toast" class="hidden"></div>
         <div id="editor-pane" class="hidden">
@@ -44,7 +51,7 @@
           <pre id="editor-body"></pre>
         </div>
         <div id="help">
-          WASD walk · Shift run · Mouse look · Esc / gate ↑ parent (or orbit) · Click globe to enter · Labels always on
+          <strong>WASD</strong> move · <strong>Hold RMB</strong> look · click globe/gate · <strong>Esc</strong> back
         </div>
       </div>
     </div>

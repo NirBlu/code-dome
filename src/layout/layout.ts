@@ -43,7 +43,7 @@ export function layoutFolder(view: FolderView): { radius: number; lots: LotPlace
   const radius = floorRadius(entryCount);
   const lots: LotPlacement[] = [];
 
-  const plazaR = 2.6;
+  const plazaR = 1.8;
   lots.push({
     id: 'plaza',
     kind: 'plaza',
@@ -63,8 +63,8 @@ export function layoutFolder(view: FolderView): { radius: number; lots: LotPlace
     kind: 'gate',
     name: parentName ? `↑ ${parentName}` : '↑ orbit',
     x: 0,
-    z: -radius + 1.2,
-    radius: 2.6,
+    z: -radius + 1.0,
+    radius: 2.0,
     height: 5.5,
     path: view.parent ?? undefined,
   });
@@ -75,11 +75,11 @@ export function layoutFolder(view: FolderView): { radius: number; lots: LotPlace
     return a.name.localeCompare(b.name);
   });
 
-  const domeRing = radius * 0.48;
+  const domeRing = radius * 0.42;
   folders.forEach((f, i) => {
     const diam = childDomeDiameter(f.subtreeFiles);
     const ang = seededAngle(f.name, i, Math.max(folders.length, 1)) + hashName(view.path) * 1e-9;
-    const r = domeRing + (hashName(f.name) % 5) * 0.18;
+    const r = domeRing + (hashName(f.name) % 5) * 0.12;
     lots.push({
       id: `folder:${f.path}`,
       kind: 'folder',
@@ -97,15 +97,16 @@ export function layoutFolder(view: FolderView): { radius: number; lots: LotPlace
   // Buildings in remaining lots — denser, still no overlap with globes
   const occupied = lots
     .filter((l) => l.kind === 'folder')
-    .map((l) => ({ x: l.x, z: l.z, r: l.radius + 0.85 }));
+    .map((l) => ({ x: l.x, z: l.z, r: l.radius + 0.55 }));
 
   // Keep plaza clear
-  occupied.push({ x: 0, z: 0, r: plazaR + 0.6 });
+  occupied.push({ x: 0, z: 0, r: plazaR + 0.4 });
   // Keep gate approach clear
-  occupied.push({ x: 0, z: -radius + 1.2, r: 3.2 });
+  occupied.push({ x: 0, z: -radius + 1.0, r: 2.4 });
 
   const files = [...view.files].sort((a, b) => a.name.localeCompare(b.name));
-  const buildRing = radius * 0.28;
+  const buildRing = radius * 0.22;
+  const lotPad = 0.72;
 
   files.forEach((file, i) => {
     const species = speciesForFile(file);
@@ -114,25 +115,25 @@ export function layoutFolder(view: FolderView): { radius: number; lots: LotPlace
     let placed = false;
     let x = 0;
     let z = 0;
-    for (let attempt = 0; attempt < 28 && !placed; attempt++) {
+    for (let attempt = 0; attempt < 36 && !placed; attempt++) {
       const ang =
         quarter +
-        (((h + attempt * 997) % 1000) / 1000) * (Math.PI * 0.38) -
-        Math.PI * 0.19;
-      const rad = buildRing + (((h >> (attempt + 3)) % 100) / 100) * (radius * 0.22);
+        (((h + attempt * 997) % 1000) / 1000) * (Math.PI * 0.42) -
+        Math.PI * 0.21;
+      const rad = buildRing + (((h >> (attempt + 3)) % 100) / 100) * (radius * 0.28);
       x = Math.sin(ang) * rad;
       z = Math.cos(ang) * rad;
       const ok = occupied.every((o) => {
         const dx = o.x - x;
         const dz = o.z - z;
-        return Math.hypot(dx, dz) > o.r + 0.75;
+        return Math.hypot(dx, dz) > o.r + lotPad;
       });
       if (ok) placed = true;
     }
     if (!placed) {
       const ang = seededAngle(file.name, i, files.length);
-      x = Math.sin(ang) * (buildRing + 1.4);
-      z = Math.cos(ang) * (buildRing + 1.4);
+      x = Math.sin(ang) * (buildRing + 0.9);
+      z = Math.cos(ang) * (buildRing + 0.9);
     }
     const height = buildingHeight(file);
     const lot: LotPlacement = {
@@ -141,14 +142,14 @@ export function layoutFolder(view: FolderView): { radius: number; lots: LotPlace
       name: file.name,
       x,
       z,
-      radius: 0.95,
+      radius: 0.72,
       height,
       species,
       path: file.path,
       file,
     };
     lots.push(lot);
-    occupied.push({ x, z, r: 1.35 });
+    occupied.push({ x, z, r: 0.95 });
   });
 
   return { radius, lots };

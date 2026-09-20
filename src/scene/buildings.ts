@@ -5,8 +5,17 @@ import type { LotPlacement } from '../types';
 import {
   createGlassMaterial,
   createToonBodyMaterial,
+  createWindowFacadeMaterial,
   makeNoiseTexture,
 } from './shaders';
+
+function facadeMat(lot: LotPlacement, floors: number) {
+  return createWindowFacadeMaterial(lot.name, {
+    floors,
+    metalness: 0.2,
+    roughness: 0.5,
+  });
+}
 
 export function createBuildingMesh(lot: LotPlacement): THREE.Object3D {
   const species = (lot.species ?? 'crate') as SpeciesId;
@@ -16,16 +25,15 @@ export function createBuildingMesh(lot: LotPlacement): THREE.Object3D {
   g.userData.lot = lot;
 
   const h = Math.max(1, lot.height);
-  const w = 1.35 + Math.min(0.9, h * 0.04);
-  const d = 1.2 + Math.min(0.8, h * 0.035);
+  const w = 1.15 + Math.min(0.75, h * 0.035);
+  const d = 1.05 + Math.min(0.65, h * 0.03);
+  const floors = Math.max(2, Math.floor(h / 0.95));
 
   if (species === 'civic') {
-    const glass = new THREE.Mesh(
-      new THREE.BoxGeometry(w, h, d),
-      createGlassMaterial(color, 0.62),
-    );
-    glass.position.y = h / 2;
-    g.add(glass);
+    // Window-grid shell (tint from filename); light lobby band
+    const body = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), facadeMat(lot, floors));
+    body.position.y = h / 2;
+    g.add(body);
     const frame = new THREE.Mesh(
       new THREE.BoxGeometry(w * 1.05, 0.1, d * 1.05),
       new THREE.MeshStandardMaterial({ color: 0xddeeff, metalness: 0.55, roughness: 0.28 }),
@@ -33,24 +41,23 @@ export function createBuildingMesh(lot: LotPlacement): THREE.Object3D {
     frame.position.y = h + 0.04;
     g.add(frame);
     const lobby = new THREE.Mesh(
-      new THREE.BoxGeometry(w * 1.02, Math.min(1.0, h * 0.22), d * 1.02),
+      new THREE.BoxGeometry(w * 1.02, Math.min(0.85, h * 0.18), d * 1.02),
       new THREE.MeshStandardMaterial({ color: 0xaad4ee, metalness: 0.12, roughness: 0.38 }),
     );
-    lobby.position.y = Math.min(1.0, h * 0.22) / 2;
+    lobby.position.y = Math.min(0.85, h * 0.18) / 2;
     g.add(lobby);
   } else if (species === 'office' || species === 'office-py') {
-    const mat = createToonBodyMaterial(color, { metalness: 0.14, roughness: 0.52 });
-    const body = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+    const body = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), facadeMat(lot, floors));
     body.position.y = h / 2;
     g.add(body);
-    const floors = Math.max(2, Math.floor(h / 1.15));
+    // Thin dark floor slabs for depth
     for (let i = 1; i < floors; i++) {
       const strip = new THREE.Mesh(
-        new THREE.BoxGeometry(w * 0.92, 0.07, d * 1.01),
+        new THREE.BoxGeometry(w * 1.01, 0.05, d * 1.01),
         new THREE.MeshStandardMaterial({
-          color: 0x223344,
-          emissive: 0x112233,
-          emissiveIntensity: 0.35,
+          color: 0x111318,
+          metalness: 0.3,
+          roughness: 0.7,
         }),
       );
       strip.position.y = (i / floors) * h;
@@ -59,7 +66,7 @@ export function createBuildingMesh(lot: LotPlacement): THREE.Object3D {
   } else if (species === 'library') {
     const body = new THREE.Mesh(
       new THREE.BoxGeometry(w * 1.15, h * 0.85, d * 1.25),
-      createToonBodyMaterial(color, { roughness: 0.72 }),
+      facadeMat(lot, Math.max(3, floors - 1)),
     );
     body.position.y = (h * 0.85) / 2;
     g.add(body);
@@ -73,7 +80,7 @@ export function createBuildingMesh(lot: LotPlacement): THREE.Object3D {
   } else if (species === 'archive') {
     const body = new THREE.Mesh(
       new THREE.CylinderGeometry(w * 0.5, w * 0.6, h, 8),
-      createToonBodyMaterial(color, { metalness: 0.4, roughness: 0.42 }),
+      facadeMat(lot, floors),
     );
     body.position.y = h / 2;
     g.add(body);
@@ -117,14 +124,14 @@ export function createBuildingMesh(lot: LotPlacement): THREE.Object3D {
   } else if (species === 'paint') {
     const body = new THREE.Mesh(
       new THREE.BoxGeometry(w, h * 0.65, d),
-      createToonBodyMaterial(color, { roughness: 0.48 }),
+      facadeMat(lot, Math.max(3, floors - 1)),
     );
     body.position.y = (h * 0.65) / 2;
     g.add(body);
   } else if (species === 'theater') {
     const body = new THREE.Mesh(
       new THREE.BoxGeometry(w * 1.25, h * 0.75, d * 1.25),
-      createToonBodyMaterial(color, { roughness: 0.58 }),
+      facadeMat(lot, floors),
     );
     body.position.y = (h * 0.75) / 2;
     g.add(body);
@@ -136,11 +143,12 @@ export function createBuildingMesh(lot: LotPlacement): THREE.Object3D {
     body.position.y = (h * 0.5) / 2;
     g.add(body);
   } else {
+    // Generic crate / unknown — still use window facade so files read as buildings
     const body = new THREE.Mesh(
-      new THREE.BoxGeometry(w * 0.85, Math.min(h, 2.0), d * 0.85),
-      createToonBodyMaterial(color, { roughness: 0.78 }),
+      new THREE.BoxGeometry(w * 0.9, Math.max(1.6, Math.min(h, 4.5)), d * 0.9),
+      facadeMat(lot, floors),
     );
-    body.position.y = Math.min(h, 2.0) / 2;
+    body.position.y = Math.max(1.6, Math.min(h, 4.5)) / 2;
     g.add(body);
   }
 
@@ -258,7 +266,7 @@ export function createGate(lot: LotPlacement, floorRadius: number): THREE.Object
     g.add(c);
   }
 
-  g.position.set(0, 0, -floorRadius + 1.2);
+  g.position.set(0, 0, -floorRadius + 1.0);
   return g;
 }
 
@@ -282,7 +290,7 @@ export function createFloor(radius: number, tint: string): THREE.Object3D {
 
   const plazaMap = makeNoiseTexture(64, '#3a4a55', true);
   const plaza = new THREE.Mesh(
-    new THREE.CircleGeometry(2.6, 32),
+    new THREE.CircleGeometry(1.8, 32),
     new THREE.MeshStandardMaterial({
       color: 0xffffff,
       map: plazaMap,

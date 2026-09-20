@@ -107,19 +107,58 @@ html, body, #app { margin: 0; height: 100%; overflow: hidden; background: var(--
 .search-hit:hover { background: rgba(126,200,232,0.12); }
 .search-hit small { color: var(--muted); }
 
-#minimap {
-  position: absolute; right: 14px; bottom: 42px;
-  width: 160px; height: 160px; border-radius: 50%;
-  border: 1px solid var(--border);
-  box-shadow: 0 4px 24px rgba(0,0,0,0.45);
-  background: rgba(8,14,20,0.5);
+#minimap-wrap {
+  position: absolute; right: 14px; bottom: 48px;
+  width: 240px;
+  z-index: 5;
+  background: rgba(6,12,18,0.92);
+  border: 1px solid #5a90b0;
+  border-radius: 14px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.55), 0 0 0 1px rgba(126,200,232,0.15);
+  overflow: hidden;
 }
+#minimap-wrap.collapsed #minimap { display: none; }
+#minimap-wrap.collapsed { width: auto; }
+#minimap-head {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 6px 10px 2px; font-size: 11px; font-weight: 600;
+  color: #9fd0ee; letter-spacing: 0.04em; text-transform: uppercase;
+}
+#minimap-hide {
+  background: transparent; border: 1px solid #3a5060; color: #8aa;
+  border-radius: 6px; padding: 2px 8px; font-size: 10px; cursor: pointer;
+}
+#minimap-hide:hover { border-color: var(--accent); color: var(--text); }
+#minimap {
+  display: block;
+  width: 240px; height: 260px;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+#look-banner {
+  position: absolute; left: 50%; top: 72px; transform: translateX(-50%);
+  font-size: 13px; color: #d8eefc;
+  background: rgba(12,24,36,0.88); border: 1px solid #3a6080;
+  padding: 8px 14px; border-radius: 10px;
+  text-shadow: none; letter-spacing: 0.02em;
+  z-index: 4;
+}
+#look-banner strong { color: #9fd8ff; }
 
 #help {
   position: absolute; left: 14px; bottom: 10px;
-  font-size: 11px; color: var(--muted);
-  background: rgba(0,0,0,0.35); padding: 4px 8px; border-radius: 6px;
+  font-size: 12px; color: #c5d8e8;
+  background: rgba(0,0,0,0.55); padding: 6px 10px; border-radius: 8px;
+  border: 1px solid #2a3a48;
+  max-width: min(520px, 55vw);
+  line-height: 1.35;
+  z-index: 4;
 }
+#help strong { color: #9fd8ff; }
+#help.orbit { color: #b8d4e8; }
 
 #orbit-hint {
   position: absolute; left: 50%; top: 45%; transform: translate(-50%, -50%);

@@ -1,6 +1,74 @@
 {
   "roots": [
     {
+      "path": "C:",
+      "name": "C:",
+      "tint": "#6c8",
+      "kind": "folder",
+      "children": [
+        {
+          "name": "Users",
+          "kind": "folder",
+          "tint": "#8cb",
+          "children": [
+            {
+              "name": "demo",
+              "kind": "folder",
+              "tint": "#9dc",
+              "children": [
+                {
+                  "name": "profile.txt",
+                  "kind": "file",
+                  "ext": "txt",
+                  "bytes": 180,
+                  "mtime": 1700002000000,
+                  "content": "Demo user on C: drive.\n"
+                },
+                {
+                  "name": "settings.json",
+                  "kind": "file",
+                  "ext": "json",
+                  "bytes": 90,
+                  "mtime": 1700002100000,
+                  "content": "{\n  \"theme\": \"dark\"\n}\n"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Windows",
+          "kind": "folder",
+          "tint": "#789",
+          "collapsed": true,
+          "subtreeFiles": 400,
+          "children": []
+        },
+        {
+          "name": "Program Files",
+          "kind": "folder",
+          "tint": "#6a8",
+          "children": [
+            {
+              "name": "readme.txt",
+              "kind": "file",
+              "ext": "txt",
+              "bytes": 120,
+              "mtime": 1700002200000,
+              "content": "Installed apps live here (demo).\n"
+            }
+          ]
+        },
+        {
+          "name": "boot.ini",
+          "kind": "file",
+          "ext": "ini",
+          "bytes": 64,
+          "mtime": 1700002300000
+        }
+      ]
+    },
+    {
       "path": "D:",
       "name": "D:",
       "tint": "#6af",
@@ -17,7 +85,7 @@
               "ext": "md",
               "bytes": 1200,
               "mtime": 1700000000000,
-              "content": "# Project\n\nDemo Code Dome tree.\n\n## Getting started\n\nOpen the demo and walk the folders.\n"
+              "content": "# Project\n\nDemo Code Dome tree on D: (demo stand-in drive).\n\n## Getting started\n\nOpen the demo and walk the folders.\nUse **Open folder** to map a real local folder as a world.\n"
             },
             {
               "name": "package.json",
@@ -192,7 +260,7 @@
           "ext": "txt",
           "bytes": 260,
           "mtime": 1700001400000,
-          "content": "Drive root D:\n\nproject/ is one child globe among siblings.\nUse the parent gate or Esc to climb back toward orbit.\n"
+          "content": "Drive root D: (demo stand-in).\n\nproject/ is one child globe among siblings.\nUse Open folder to map a real local folder as a world.\n"
         },
         {
           "name": "config.json",
@@ -201,6 +269,119 @@
           "bytes": 120,
           "mtime": 1700001500000,
           "content": "{\n  \"drive\": \"D:\",\n  \"theme\": \"code-dome\"\n}\n"
+        }
+      ]
+    },
+    {
+      "path": "E:",
+      "name": "E:",
+      "tint": "#c86",
+      "kind": "folder",
+      "children": [
+        {
+          "name": "backup",
+          "kind": "folder",
+          "tint": "#b75",
+          "children": [
+            {
+              "name": "archive.zip",
+              "kind": "file",
+              "ext": "zip",
+              "bytes": 8400000,
+              "mtime": 1700003000000
+            },
+            {
+              "name": "manifest.json",
+              "kind": "file",
+              "ext": "json",
+              "bytes": 200,
+              "mtime": 1700003100000,
+              "content": "{\n  \"files\": 42,\n  \"drive\": \"E:\"\n}\n"
+            }
+          ]
+        },
+        {
+          "name": "media",
+          "kind": "folder",
+          "tint": "#d98",
+          "children": [
+            {
+              "name": "clip.mp4",
+              "kind": "file",
+              "ext": "mp4",
+              "bytes": 12000000,
+              "mtime": 1700003200000
+            },
+            {
+              "name": "cover.png",
+              "kind": "file",
+              "ext": "png",
+              "bytes": 220000,
+              "mtime": 1700003300000
+            }
+          ]
+        },
+        {
+          "name": "external.txt",
+          "kind": "file",
+          "ext": "txt",
+          "bytes": 140,
+          "mtime": 1700003400000,
+          "content": "E: is a demo external / secondary volume.\n"
+        }
+      ]
+    },
+    {
+      "path": "~",
+      "name": "~",
+      "tint": "#a8c",
+      "kind": "folder",
+      "children": [
+        {
+          "name": "Projects",
+          "kind": "folder",
+          "tint": "#9ad",
+          "children": [
+            {
+              "name": "hello.py",
+              "kind": "file",
+              "ext": "py",
+              "bytes": 80,
+              "mtime": 1700004000000,
+              "content": "print('hello from home')\n"
+            },
+            {
+              "name": "notes.md",
+              "kind": "file",
+              "ext": "md",
+              "bytes": 200,
+              "mtime": 1700004100000,
+              "content": "# Home projects\n\nDemo ~ world (home).\n"
+            }
+          ]
+        },
+        {
+          "name": "Downloads",
+          "kind": "folder",
+          "tint": "#8bc",
+          "children": [
+            {
+              "name": "setup.sh",
+              "kind": "file",
+              "ext": "sh",
+              "bytes": 120,
+              "mtime": 1700004200000,
+              "content": "#!/bin/bash\necho setup\n"
+            }
+          ]
+        },
+        {
+          "name": ".bashrc",
+          "kind": "file",
+          "ext": "bashrc",
+          "bytes": 60,
+          "mtime": 1700004300000,
+          "content": "export PATH=$PATH:~/bin\n"
         }
       ]
     }
