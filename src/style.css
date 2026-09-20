@@ -135,9 +135,13 @@ html, body, #app { margin: 0; height: 100%; overflow: hidden; background: var(--
 
 #toast {
   position: absolute; left: 50%; bottom: 64px; transform: translateX(-50%);
-  background: rgba(20,30,40,0.95); border: 1px solid var(--border);
-  padding: 8px 14px; border-radius: 8px; font-size: 13px;
+  background: rgba(16,28,40,0.96); border: 1px solid #4a7a9a;
+  padding: 10px 16px; border-radius: 10px; font-size: 13px;
+  box-shadow: 0 8px 28px rgba(0,0,0,0.45), 0 0 0 1px rgba(126,200,232,0.12);
+  letter-spacing: 0.01em;
 }
+#orbit-hint strong { color: #9fd8ff; }
+
 
 #editor-pane {
   position: absolute; left: 14px; top: 64px; width: min(480px, 46vw); max-height: 70vh;

@@ -24,8 +24,9 @@ const canvas = document.getElementById('c') as HTMLCanvasElement;
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.outputColorSpace = THREE.SRGBColorSpace;
 
-const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 500);
+const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 600);
 const dome = new DomeScene();
 const controls = new WalkControls(camera, canvas);
 const raycaster = new THREE.Raycaster();
@@ -77,10 +78,10 @@ const hud = new Hud({
 async function bootDemo() {
   worlds = await loadDemoWorlds();
   enterOrbit();
-  hud.toast('Demo tree loaded');
+  hud.toast('Drive world ready — click D: to land');
 }
 
-function enterOrbit() {
+function enterOrbit(fromDrive = false) {
   layer = 'orbit';
   world = null;
   cwd = '';
@@ -94,11 +95,13 @@ function enterOrbit() {
   hud.setOrbitMode(true);
   hud.hideInspector();
   hud.hideEditor();
+  if (fromDrive) hud.toast('Back to orbit · click a drive world to land');
 }
 
 async function landOnWorld(w: WorldRoot) {
   world = w;
   folderCache.clear();
+  hud.toast(`Landing on ${w.name}…`);
   await navigateTo(w.path, true);
 }
 
@@ -114,6 +117,7 @@ async function navigateTo(path: string, fromOrbit = false) {
   }
   folderCache.set(path, next);
 
+  const prevPath = cwd;
   await dome.beginTransition(fromOrbit ? 550 : 400);
   cwd = path;
   view = next;
@@ -129,23 +133,33 @@ async function navigateTo(path: string, fromOrbit = false) {
   hud.renderPath(trail, view);
 
   controls.setEnabled(true);
-  // Spawn near plaza looking toward +Z (gate is -Z, so “in” faces away from gate initially a bit)
-  controls.resetAt(0, 8, Math.PI);
+  controls.resetAt(0, 7, Math.PI);
   controls.eyeHeight = 1.7;
+
+  if (fromOrbit) {
+    hud.toast(`Entered ${view.name} (drive root) · gate ↑ orbit`);
+  } else if (prevPath && path.length < prevPath.length) {
+    hud.toast(`Up to ${view.name}`);
+  } else if (prevPath !== path) {
+    hud.toast(`Entered ${view.name}`);
+  }
 }
 
 async function goUp() {
   if (!world || !view) return;
   if (view.parent) {
+    const parentName = view.ancestors[view.ancestors.length - 1]?.name ?? 'parent';
+    hud.toast(`Exiting → ${parentName}`);
     await navigateTo(view.parent);
   } else {
-    enterOrbit();
+    enterOrbit(true);
   }
 }
 
 async function activateSelection() {
   if (!selection) return;
   if (selection.kind === 'folder' && selection.path) {
+    hud.toast(`Crossing membrane → ${selection.name}`);
     await navigateTo(selection.path);
   } else if (selection.kind === 'gate') {
     await goUp();
@@ -169,12 +183,11 @@ function enterHtmlInterior(lot: LotPlacement) {
   const { group, spawn } = buildHtmlInterior(lot.file);
   interiorRoot = group;
   dome.scene.add(group);
-  // Hide dome floor content visually by dimming — keep for return
   dome.root.visible = false;
   controls.resetAt(spawn.x, spawn.z, 0);
   controls.eyeHeight = spawn.y;
   camera.position.y = spawn.y;
-  hud.toast(`Entered ${lot.name} (civic interior)`);
+  hud.toast(`Entered ${lot.name} (civic interior) · Esc to exit`);
 }
 
 function exitInterior(restoreCam: boolean) {
@@ -186,6 +199,7 @@ function exitInterior(restoreCam: boolean) {
   if (restoreCam && layer === 'interior') {
     layer = 'dome';
     controls.resetAt(selection?.x ?? 0, (selection?.z ?? 0) + 4, 0);
+    hud.toast('Back to dome floor');
   }
   if (layer === 'interior') layer = 'dome';
 }
@@ -200,7 +214,6 @@ async function onSearchHit(hit: SearchHit) {
   if (hit.nextDome) {
     hud.toast(`Enter dome toward ${hit.name}`);
     await navigateTo(hit.nextDome);
-    // After enter, if hit is now in cwd select it; else beacon on containing globe
     const lot = dome.lots.find((l) => l.path === hit.path);
     if (lot) selectLot(lot);
     else {
@@ -253,7 +266,6 @@ function onPointer(clientX: number, clientY: number) {
 let lastClick = 0;
 canvas.addEventListener('pointerdown', (e) => {
   if (e.button !== 0) return;
-  // When pointer lock is on, click is look — use center ray for interact with optional Alt
   const useCenter = controls.pointerLocked;
   const hit = useCenter
     ? (() => {
@@ -281,7 +293,6 @@ canvas.addEventListener('pointerdown', (e) => {
   }
 });
 
-// Minimap click → face/move toward lot
 document.getElementById('minimap')!.addEventListener('click', (e) => {
   if (!view || layer !== 'dome') return;
   const rect = (e.target as HTMLElement).getBoundingClientRect();
@@ -292,7 +303,6 @@ document.getElementById('minimap')!.addEventListener('click', (e) => {
   const scale = ((W / 2 - 8) / dome.floorRadius) * 0.92;
   const x = (mx - W / 2) / scale;
   const z = (my - H / 2) / scale;
-  // Find nearest lot
   let best: LotPlacement | null = null;
   let bestD = Infinity;
   for (const lot of dome.lots) {
@@ -317,9 +327,6 @@ window.addEventListener('keydown', (e) => {
       exitInterior(true);
       if (selection) controls.resetAt(selection.x, selection.z + 3, 0);
       return;
-    }
-    if (hud) {
-      /* close editor/search */
     }
     document.getElementById('editor-pane')!.classList.add('hidden');
     void goUp();
@@ -353,6 +360,8 @@ function frame() {
     camera.lookAt(0, 0, 0);
   }
 
+  dome.updateLabels(camera);
+
   if (layer === 'dome' && view) {
     hud.drawMinimap(
       dome.lots,
@@ -367,7 +376,6 @@ function frame() {
   requestAnimationFrame(frame);
 }
 
-// Expose findFile for debugging
 void findFile;
 
 bootDemo()

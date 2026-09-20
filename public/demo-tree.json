@@ -1,132 +1,206 @@
 {
   "roots": [
     {
-      "path": "/project",
-      "name": "project",
-      "tint": "#6a9",
+      "path": "D:",
+      "name": "D:",
+      "tint": "#6af",
       "kind": "folder",
       "children": [
         {
-          "name": "README.md",
-          "kind": "file",
-          "ext": "md",
-          "bytes": 1200,
-          "mtime": 1700000000000,
-          "content": "# Project\n\nDemo Code Dome tree.\n\n## Getting started\n\nOpen the demo and walk the folders.\n"
-        },
-        {
-          "name": "package.json",
-          "kind": "file",
-          "ext": "json",
-          "bytes": 380,
-          "mtime": 1700000100000,
-          "content": "{\n  \"name\": \"demo-project\",\n  \"version\": \"1.0.0\",\n  \"private\": true\n}\n"
-        },
-        {
-          "name": "index.html",
-          "kind": "file",
-          "ext": "html",
-          "bytes": 890,
-          "mtime": 1700000200000,
-          "content": "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n  <meta charset=\"UTF-8\" />\n  <meta name=\"viewport\" content=\"width=device-width\" />\n  <title>Demo App</title>\n  <link rel=\"stylesheet\" href=\"/src/styles/main.css\" />\n</head>\n<body>\n  <header>\n    <nav>Home · About</nav>\n  </header>\n  <main>\n    <section>\n      <h1>Welcome</h1>\n      <p>Hello from Code Dome.</p>\n    </section>\n    <article>\n      <h2>Details</h2>\n      <p>More content here.</p>\n    </article>\n  </main>\n  <footer>\n    <p>&copy; 2026</p>\n  </footer>\n  <script type=\"module\" src=\"/src/index.ts\"></script>\n</body>\n</html>\n"
-        },
-        {
-          "name": "src",
+          "name": "project",
           "kind": "folder",
-          "tint": "#8cf",
+          "tint": "#6a9",
           "children": [
             {
-              "name": "index.ts",
-              "kind": "file",
-              "ext": "ts",
-              "bytes": 420,
-              "mtime": 1700000300000,
-              "content": "import { App } from './app';\n\nconst app = new App();\napp.mount(document.body);\n"
-            },
-            {
-              "name": "app.ts",
-              "kind": "file",
-              "ext": "ts",
-              "bytes": 980,
-              "mtime": 1700000400000,
-              "content": "export class App {\n  mount(el: HTMLElement) {\n    el.innerHTML = '<div id=\"root\"></div>';\n  }\n}\n"
-            },
-            {
-              "name": "components",
-              "kind": "folder",
-              "tint": "#9df",
-              "children": [
-                {
-                  "name": "Button.tsx",
-                  "kind": "file",
-                  "ext": "tsx",
-                  "bytes": 640,
-                  "mtime": 1700000500000,
-                  "content": "export function Button(props: { label: string }) {\n  return <button>{props.label}</button>;\n}\n"
-                },
-                {
-                  "name": "Modal.tsx",
-                  "kind": "file",
-                  "ext": "tsx",
-                  "bytes": 1100,
-                  "mtime": 1700000600000,
-                  "content": "export function Modal(props: { open: boolean; children: unknown }) {\n  if (!props.open) return null;\n  return <div className=\"modal\">{props.children}</div>;\n}\n"
-                }
-              ]
-            },
-            {
-              "name": "styles",
-              "kind": "folder",
-              "tint": "#c8a",
-              "children": [
-                {
-                  "name": "main.css",
-                  "kind": "file",
-                  "ext": "css",
-                  "bytes": 520,
-                  "mtime": 1700000700000,
-                  "content": "body { margin: 0; font-family: system-ui, sans-serif; }\n"
-                }
-              ]
-            }
-          ]
-        },
-        {
-          "name": "docs",
-          "kind": "folder",
-          "tint": "#ad8",
-          "children": [
-            {
-              "name": "guide.md",
+              "name": "README.md",
               "kind": "file",
               "ext": "md",
-              "bytes": 700,
-              "mtime": 1700000800000,
-              "content": "# Guide\n\nHow to use the demo project.\n"
+              "bytes": 1200,
+              "mtime": 1700000000000,
+              "content": "# Project\n\nDemo Code Dome tree.\n\n## Getting started\n\nOpen the demo and walk the folders.\n"
+            },
+            {
+              "name": "package.json",
+              "kind": "file",
+              "ext": "json",
+              "bytes": 380,
+              "mtime": 1700000100000,
+              "content": "{\n  \"name\": \"demo-project\",\n  \"version\": \"1.0.0\",\n  \"private\": true\n}\n"
+            },
+            {
+              "name": "index.html",
+              "kind": "file",
+              "ext": "html",
+              "bytes": 890,
+              "mtime": 1700000200000,
+              "content": "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n  <meta charset=\"UTF-8\" />\n  <meta name=\"viewport\" content=\"width=device-width\" />\n  <title>Demo App</title>\n  <link rel=\"stylesheet\" href=\"/src/styles/main.css\" />\n</head>\n<body>\n  <header>\n    <nav>Home · About</nav>\n  </header>\n  <main>\n    <section>\n      <h1>Welcome</h1>\n      <p>Hello from Code Dome.</p>\n    </section>\n    <article>\n      <h2>Details</h2>\n      <p>More content here.</p>\n    </article>\n  </main>\n  <footer>\n    <p>&copy; 2026</p>\n  </footer>\n  <script type=\"module\" src=\"/src/index.ts\"></script>\n</body>\n</html>\n"
+            },
+            {
+              "name": "src",
+              "kind": "folder",
+              "tint": "#8cf",
+              "children": [
+                {
+                  "name": "index.ts",
+                  "kind": "file",
+                  "ext": "ts",
+                  "bytes": 420,
+                  "mtime": 1700000300000,
+                  "content": "import { App } from './app';\n\nconst app = new App();\napp.mount(document.body);\n"
+                },
+                {
+                  "name": "app.ts",
+                  "kind": "file",
+                  "ext": "ts",
+                  "bytes": 980,
+                  "mtime": 1700000400000,
+                  "content": "export class App {\n  mount(el: HTMLElement) {\n    el.innerHTML = '<div id=\"root\"></div>';\n  }\n}\n"
+                },
+                {
+                  "name": "components",
+                  "kind": "folder",
+                  "tint": "#9df",
+                  "children": [
+                    {
+                      "name": "Button.tsx",
+                      "kind": "file",
+                      "ext": "tsx",
+                      "bytes": 640,
+                      "mtime": 1700000500000,
+                      "content": "export function Button(props: { label: string }) {\n  return <button>{props.label}</button>;\n}\n"
+                    },
+                    {
+                      "name": "Modal.tsx",
+                      "kind": "file",
+                      "ext": "tsx",
+                      "bytes": 1100,
+                      "mtime": 1700000600000,
+                      "content": "export function Modal(props: { open: boolean; children: unknown }) {\n  if (!props.open) return null;\n  return <div className=\"modal\">{props.children}</div>;\n}\n"
+                    }
+                  ]
+                },
+                {
+                  "name": "styles",
+                  "kind": "folder",
+                  "tint": "#c8a",
+                  "children": [
+                    {
+                      "name": "main.css",
+                      "kind": "file",
+                      "ext": "css",
+                      "bytes": 520,
+                      "mtime": 1700000700000,
+                      "content": "body { margin: 0; font-family: system-ui, sans-serif; }\n"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "name": "docs",
+              "kind": "folder",
+              "tint": "#ad8",
+              "children": [
+                {
+                  "name": "guide.md",
+                  "kind": "file",
+                  "ext": "md",
+                  "bytes": 700,
+                  "mtime": 1700000800000,
+                  "content": "# Guide\n\nHow to use the demo project.\n"
+                }
+              ]
+            },
+            {
+              "name": "assets",
+              "kind": "folder",
+              "tint": "#da8",
+              "children": [
+                {
+                  "name": "logo.png",
+                  "kind": "file",
+                  "ext": "png",
+                  "bytes": 4096,
+                  "mtime": 1700000900000
+                }
+              ]
+            },
+            {
+              "name": "node_modules",
+              "kind": "folder",
+              "tint": "#666",
+              "collapsed": true,
+              "subtreeFiles": 1200,
+              "children": []
             }
           ]
         },
         {
-          "name": "assets",
+          "name": "Documents",
           "kind": "folder",
-          "tint": "#da8",
+          "tint": "#9ab",
           "children": [
             {
-              "name": "logo.png",
+              "name": "notes.md",
               "kind": "file",
-              "ext": "png",
-              "bytes": 4096,
-              "mtime": 1700000900000
+              "ext": "md",
+              "bytes": 420,
+              "mtime": 1700001000000,
+              "content": "# Notes\n\nSibling folder on the drive — go up from project to see the whole drive.\n"
+            },
+            {
+              "name": "todo.txt",
+              "kind": "file",
+              "ext": "txt",
+              "bytes": 180,
+              "mtime": 1700001100000,
+              "content": "- Enter project globe\n- Walk src\n- Esc back to D:\n"
             }
           ]
         },
         {
-          "name": "node_modules",
+          "name": "Music",
           "kind": "folder",
-          "tint": "#666",
-          "collapsed": true,
-          "subtreeFiles": 1200,
-          "children": []
+          "tint": "#b8a",
+          "children": [
+            {
+              "name": "theme.mp3",
+              "kind": "file",
+              "ext": "mp3",
+              "bytes": 3200000,
+              "mtime": 1700001200000
+            }
+          ]
+        },
+        {
+          "name": "Desktop",
+          "kind": "folder",
+          "tint": "#8ba",
+          "children": [
+            {
+              "name": "shortcut.url",
+              "kind": "file",
+              "ext": "url",
+              "bytes": 64,
+              "mtime": 1700001300000
+            }
+          ]
+        },
+        {
+          "name": "readme_drive.txt",
+          "kind": "file",
+          "ext": "txt",
+          "bytes": 260,
+          "mtime": 1700001400000,
+          "content": "Drive root D:\n\nproject/ is one child globe among siblings.\nUse the parent gate or Esc to climb back toward orbit.\n"
+        },
+        {
+          "name": "config.json",
+          "kind": "file",
+          "ext": "json",
+          "bytes": 120,
+          "mtime": 1700001500000,
+          "content": "{\n  \"drive\": \"D:\",\n  \"theme\": \"code-dome\"\n}\n"
         }
       ]
     }

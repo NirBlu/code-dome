@@ -88,19 +88,23 @@ export function isTextReadable(file: TreeFile): boolean {
   );
 }
 
+/** Log-scaled height with strong compression + low cap for walkable sightlines. */
 export function buildingHeight(file: TreeFile): number {
   const locGuess = file.content
     ? file.content.split('\n').length
     : Math.max(1, Math.round(file.bytes / 40));
   const base = isTextReadable(file) ? locGuess : file.bytes;
-  return 1 + Math.log2(1 + base);
+  const raw = 1 + Math.log2(1 + base);
+  // Compress toward mid-rise; never skyscraper
+  return Math.min(6.5, 1.15 + raw * 0.42);
 }
 
 export function childDomeDiameter(subtreeFiles: number): number {
-  const d = 2 + 4 * Math.log2(1 + subtreeFiles);
-  return Math.min(18, Math.max(2, d));
+  const d = 1.8 + 3.2 * Math.log2(1 + subtreeFiles);
+  return Math.min(14, Math.max(1.8, d));
 }
 
+/** Slightly tighter floor so lots pack denser. */
 export function floorRadius(entryCount: number): number {
-  return 40 + 8 * Math.log2(1 + entryCount);
+  return 28 + 6 * Math.log2(1 + entryCount);
 }

@@ -126,7 +126,7 @@ export class Hud {
     label.textContent = `Depth ${d}`;
     label.title =
       d === 0
-        ? 'At drive/project root'
+        ? 'At drive root (depth 0)'
         : `${d} membrane${d === 1 ? '' : 's'} under ${trail[0]?.name ?? 'root'}`;
     this.depth.appendChild(label);
 
@@ -191,7 +191,7 @@ export class Hud {
     }
     if (lot.kind === 'gate') {
       const back = document.createElement('button');
-      back.textContent = 'Go up';
+      back.textContent = lot.path ? `Go up (${lot.name})` : 'Return to orbit';
       back.onclick = () => this.cb.onEnterSelection();
       this.inspActions.appendChild(back);
     }
@@ -233,7 +233,7 @@ export class Hud {
   toast(msg: string) {
     this.toastEl.textContent = msg;
     this.toastEl.classList.remove('hidden');
-    setTimeout(() => this.toastEl.classList.add('hidden'), 1800);
+    setTimeout(() => this.toastEl.classList.add('hidden'), 2400);
   }
 
   showEditor(title: string, body: string) {
