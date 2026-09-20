@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Code Dome</title>
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <div id="app">
+      <canvas id="c"></canvas>
+      <div id="hud">
+        <header id="top-bar">
+          <div id="brand">Code Dome</div>
+          <div id="path-ribbon"></div>
+          <div id="counts"></div>
+          <div id="depth-meter" title="Depth / membranes"></div>
+          <input id="search" type="search" placeholder="Search cwd…" autocomplete="off" />
+          <button id="btn-open-folder" type="button" title="Open local folder">Open folder</button>
+          <button id="btn-demo" type="button" title="Load demo tree">Demo</button>
+        </header>
+        <aside id="inspector" class="hidden">
+          <div id="inspector-head">
+            <strong id="insp-name"></strong>
+            <button id="insp-close" type="button" aria-label="Close">×</button>
+          </div>
+          <div id="insp-meta"></div>
+          <div id="insp-path-row">
+            <code id="insp-path"></code>
+            <button id="insp-copy" type="button">Copy</button>
+          </div>
+          <div id="insp-actions"></div>
+        </aside>
+        <div id="search-results" class="hidden"></div>
+        <canvas id="minimap" width="160" height="160"></canvas>
+        <div id="orbit-hint" class="hidden">Click the world to land</div>
+        <div id="crosshair"></div>
+        <div id="toast" class="hidden"></div>
+        <div id="editor-pane" class="hidden">
+          <div id="editor-head">
+            <span id="editor-title"></span>
+            <button id="editor-close" type="button">×</button>
+          </div>
+          <pre id="editor-body"></pre>
+        </div>
+        <div id="help">
+          WASD walk · Shift run · Mouse look (click) · Q/E or wheel height · Esc back · Click globe/gate/building
+        </div>
+      </div>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
