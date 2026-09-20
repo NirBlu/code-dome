@@ -114,6 +114,46 @@ function listDrives(): Array<{ name: string; path: string }> {
   return out;
 }
 
+
+function driveRootOf(safe: string): string {
+  const parts = safe.split('/').filter(Boolean);
+  if (parts[0] === 'home' && parts[1]) return '/' + parts.slice(0, 2).join('/');
+  if (parts[0] === 'media' && parts[1] && parts[2]) return '/' + parts.slice(0, 3).join('/');
+  if (parts[0] === 'media' && parts[1]) return '/' + parts.slice(0, 2).join('/');
+  if (parts[0] === 'mnt' && parts[1]) return '/' + parts.slice(0, 2).join('/');
+  if (parts[0] === 'tmp') return '/tmp';
+  if (parts[0] === 'mnt') return '/mnt';
+  if (parts[0] === 'home') return '/home';
+  return '/' + (parts[0] || '');
+}
+
+function ancestorsAndParent(safe: string): {
+  parent: string | null;
+  depth: number;
+  ancestors: Array<{ name: string; path: string }>;
+} {
+  const root = driveRootOf(safe);
+  if (safe === root) {
+    return { parent: null, depth: 0, ancestors: [] };
+  }
+  const rel = safe.startsWith(root + '/') ? safe.slice(root.length + 1) : safe.replace(/^\//, '');
+  const parts = rel.split('/').filter(Boolean);
+  const ancestors: Array<{ name: string; path: string }> = [
+    { name: path.basename(root) || root, path: root },
+  ];
+  let cur = root;
+  for (let i = 0; i < parts.length - 1; i++) {
+    cur = path.join(cur, parts[i]);
+    ancestors.push({ name: parts[i], path: cur });
+  }
+  const parentPath = path.dirname(safe);
+  return {
+    parent: parentPath === safe ? null : parentPath,
+    depth: parts.length,
+    ancestors,
+  };
+}
+
 function listTree(dirPath: string) {
   const safe = resolveSafe(dirPath);
   if (!safe) {
@@ -192,11 +232,15 @@ function listTree(dirPath: string) {
   folders.sort((a, b) => a.name.localeCompare(b.name));
   files.sort((a, b) => a.name.localeCompare(b.name));
 
+  const meta = ancestorsAndParent(safe);
   return {
     path: safe,
     name: path.basename(safe) || safe,
     files,
     folders,
+    parent: meta.parent,
+    depth: meta.depth,
+    ancestors: meta.ancestors,
   };
 }
 

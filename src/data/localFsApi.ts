@@ -16,9 +16,20 @@ export interface ApiTreeResponse {
     subtreeFiles: number;
     collapsed: boolean;
   }>;
+  parent?: string | null;
+  depth?: number;
+  ancestors?: Array<{ name: string; path: string }>;
 }
 
 const TINTS = ['#6a9', '#8af', '#fa6', '#c8e', '#9c6', '#6cf'];
+
+/** Short-lived tree cache so rapid back/forward doesn't spam ls. */
+const treeCache = new Map<string, { at: number; data: ApiTreeResponse }>();
+const TREE_TTL_MS = 2500;
+
+export function isLocalApiWorld(world: WorldRoot | null | undefined): boolean {
+  return world?.source === 'local-api' || world?.source === 'api';
+}
 
 /** Probe whether the Vite local-FS bridge is available (dev only). */
 export async function probeLocalDrivesApi(): Promise<boolean> {
@@ -36,13 +47,23 @@ export async function fetchDrives(): Promise<DriveInfo[]> {
   return (await res.json()) as DriveInfo[];
 }
 
-export async function fetchTree(absPath: string): Promise<ApiTreeResponse> {
+export async function fetchTree(absPath: string, opts?: { fresh?: boolean }): Promise<ApiTreeResponse> {
+  if (!opts?.fresh) {
+    const hit = treeCache.get(absPath);
+    if (hit && Date.now() - hit.at < TREE_TTL_MS) return hit.data;
+  }
   const res = await fetch(`/api/tree?path=${encodeURIComponent(absPath)}`);
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
     throw new Error((body as { error?: string }).error || `tree ${res.status}`);
   }
-  return (await res.json()) as ApiTreeResponse;
+  const data = (await res.json()) as ApiTreeResponse;
+  treeCache.set(absPath, { at: Date.now(), data });
+  return data;
+}
+
+export function clearTreeCache() {
+  treeCache.clear();
 }
 
 export async function fetchFileContent(absPath: string): Promise<string | undefined> {
@@ -80,32 +101,56 @@ export function worldStubFromDrive(drive: DriveInfo, index = 0): WorldRoot {
     name: drive.name,
     tint: tree.tint,
     tree,
-    source: 'api',
+    source: 'local-api',
     apiRoot: drive.path,
   };
 }
 
 /**
+ * Prefer a useful home/media root for auto-land.
+ */
+export function pickPreferredDrive(drives: DriveInfo[]): DriveInfo | null {
+  if (!drives.length) return null;
+  const preferred = [
+    '/home/nirblu',
+    '/media/nirblu',
+    '/home/box',
+  ];
+  for (const p of preferred) {
+    const hit = drives.find((d) => d.path === p);
+    if (hit) return hit;
+  }
+  // First /home/* user, then first /media mount, else first drive
+  const home = drives.find((d) => /^\/home\/[^/]+$/.test(d.path));
+  if (home) return home;
+  const media = drives.find((d) => d.path.startsWith('/media/'));
+  if (media) return media;
+  return drives[0];
+}
+
+/**
  * Fetch one directory listing and merge it into the API world tree.
- * Returns a FolderView ready for the dome.
+ * Returns a FolderView ready for the dome — always ls-backed for local-api worlds.
  */
 export async function loadApiFolderView(
   world: WorldRoot,
   absPath: string,
 ): Promise<FolderView | null> {
-  if (world.source !== 'api') return null;
+  if (!isLocalApiWorld(world)) return null;
 
   const data = await fetchTree(absPath);
   const folder = upsertApiFolder(world, data);
 
-  // Ancestors from apiRoot → absPath
-  const ancestors = ancestorsBetween(world.apiRoot || world.path, absPath, world);
+  const rootPath = world.apiRoot || world.path;
+  const ancestors = ancestorsForView(world, rootPath, absPath, data);
   const parent =
-    absPath === (world.apiRoot || world.path)
+    absPath === rootPath
       ? null
-      : absPath.includes('/')
-        ? absPath.slice(0, absPath.lastIndexOf('/')) || '/'
-        : null;
+      : data.parent != null
+        ? data.parent
+        : absPath.includes('/')
+          ? absPath.slice(0, absPath.lastIndexOf('/')) || '/'
+          : null;
 
   const files: TreeFile[] = [];
   const folders: FolderView['folders'] = [];
@@ -137,6 +182,28 @@ export async function loadApiFolderView(
   };
 }
 
+function ancestorsForView(
+  world: WorldRoot,
+  rootPath: string,
+  targetPath: string,
+  data: ApiTreeResponse,
+): Array<{ name: string; path: string; tint: string }> {
+  // Prefer API ancestors clipped to this world root
+  if (data.ancestors?.length) {
+    const clipped = data.ancestors.filter(
+      (a) => a.path === rootPath || a.path.startsWith(rootPath + '/'),
+    );
+    if (clipped.length && clipped[0].path === rootPath) {
+      return clipped.map((a) => ({
+        name: a.path === rootPath ? world.name : a.name,
+        path: a.path,
+        tint: a.path === rootPath ? world.tint : tintFor(a.path),
+      }));
+    }
+  }
+  return ancestorsBetween(rootPath, targetPath, world);
+}
+
 function ancestorsBetween(
   rootPath: string,
   targetPath: string,
@@ -148,7 +215,6 @@ function ancestorsBetween(
     : targetPath.replace(/^\//, '');
   const parts = rel.split('/').filter(Boolean);
   const out: Array<{ name: string; path: string; tint: string }> = [];
-  // Include root as first ancestor when we're deeper
   out.push({ name: world.name, path: rootPath, tint: world.tint });
   let cur = rootPath;
   for (let i = 0; i < parts.length - 1; i++) {
@@ -169,7 +235,7 @@ function upsertApiFolder(world: WorldRoot, data: ApiTreeResponse): TreeFolder {
       tint: tintFor(f.path),
       collapsed: f.collapsed || shouldCollapseFolder(f.name),
       subtreeFiles: f.subtreeFiles,
-      children: [], // filled when navigated into
+      children: [],
     });
   }
 
@@ -201,7 +267,6 @@ function upsertApiFolder(world: WorldRoot, data: ApiTreeResponse): TreeFolder {
     }, 0),
   };
 
-  // Graft into world.tree
   if (data.path === world.tree.path) {
     world.tree.children = folder.children;
     world.tree.subtreeFiles = folder.subtreeFiles;

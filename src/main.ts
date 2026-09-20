@@ -3,10 +3,13 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { WalkControls } from './controls/WalkControls';
 import { loadDemoWorlds } from './data/demoLoader';
 import {
+  clearTreeCache,
   fetchDrives,
   fetchFileContent,
+  isLocalApiWorld,
   loadApiFolderView,
   pathTrailFromApiView,
+  pickPreferredDrive,
   probeLocalDrivesApi,
   worldStubFromDrive,
 } from './data/localFsApi';
@@ -91,7 +94,7 @@ const hud = new Hud({
   onExpandEllipsis: () => {
     if (world && view) {
       const trail =
-        world.source === 'api' ? pathTrailFromApiView(world, view) : pathTrail(world, cwd);
+        isLocalApiWorld(world) ? pathTrailFromApiView(world, view) : pathTrail(world, cwd);
       hud.renderPath(trail, view);
     }
   },
@@ -112,7 +115,7 @@ const hud = new Hud({
   },
   onSearch: (q) => {
     if (!world) return;
-    if (world.source === 'api') {
+    if (isLocalApiWorld(world)) {
       // Search within currently loaded tree cache
       hud.showSearch(searchTree(world, cwd, q));
       return;
@@ -122,7 +125,7 @@ const hud = new Hud({
   onSearchPick: (hit) => void onSearchHit(hit),
   onOpenFolder: () => void pickLocalFolder(),
   onBrowseFolder: () => triggerWebkitBrowse(),
-  onLocalDrives: () => void openLocalDrives(),
+  onMyComputer: () => void openMyComputer(),
   onLoadDemo: () => void bootDemo(),
   onCloseEditor: () => hud.hideEditor(),
   onDepthHover: () => {
@@ -133,7 +136,7 @@ const hud = new Hud({
 async function bootDemo() {
   worlds = await loadDemoWorlds();
   enterOrbit();
-  hud.toast('Demo galaxy · C: D: E: ~ — click a world to land');
+  hud.toast('Demo galaxy loaded · click a world to land');
 }
 
 function enterOrbit(fromDrive = false) {
@@ -175,7 +178,7 @@ async function navigateTo(path: string, fromOrbit = false) {
 
   let next: FolderView | null = null;
 
-  if (world.source === 'api') {
+  if (isLocalApiWorld(world)) {
     try {
       next = await loadApiFolderView(world, path);
     } catch (e) {
@@ -205,7 +208,7 @@ async function navigateTo(path: string, fromOrbit = false) {
   hud.resetExpand();
 
   const trail =
-    world.source === 'api' ? pathTrailFromApiView(world, view) : pathTrail(world, cwd);
+    isLocalApiWorld(world) ? pathTrailFromApiView(world, view) : pathTrail(world, cwd);
   dome.buildDome(view, trail);
   hud.setOrbitMode(false);
   hud.renderPath(trail, view);
@@ -255,7 +258,7 @@ async function openEditorForSelection() {
   if (!selection?.file) return;
   const f = selection.file;
   let content = f.content;
-  if (!content && world?.source === 'api' && f.path) {
+  if (!content && isLocalApiWorld(world) && f.path) {
     content = await fetchFileContent(f.path);
     if (content) f.content = content;
   }
@@ -324,7 +327,7 @@ function selectLot(lot: LotPlacement) {
 
 function triggerWebkitBrowse() {
   if (!folderInput) {
-    hud.toast('Browse not available in this browser');
+    hud.toast('Browser pick not available');
     return;
   }
   folderInput.value = '';
@@ -338,10 +341,10 @@ async function ingestWebkitFiles(fileList: FileList | null) {
     const wr = await worldFromWebkitFileList(fileList);
     upsertWorld(wr);
     await landOnWorld(wr);
-    hud.toast(`Mapped “${wr.name}” via Browse · Esc to orbit`);
+    hud.toast(`Mapped “${wr.name}” (browser snapshot) · Esc to orbit`);
   } catch (e) {
     console.error(e);
-    hud.toast('Browse folder failed');
+    hud.toast('Browser pick failed');
   }
 }
 
@@ -368,43 +371,54 @@ async function pickLocalFolder() {
     } catch (e) {
       if ((e as Error).name === 'AbortError') return;
       console.error(e);
-      hud.toast('Folder open failed — try Browse… or Local drives');
+      hud.toast('Folder open failed — try My computer (npm run dev) or Browser pick…');
       return;
     }
   }
 
-  // No File System Access API — offer webkitdirectory / Local drives (never silent demo)
-  if (folderInput) {
-    hud.toast('Picker unavailable — choose a folder (Browse) or use Local drives');
+  if (localDrivesAvailable) {
+    hud.toast('Use My computer for live disks (or Browser pick… under Advanced)');
+    void openMyComputer();
+  } else if (folderInput) {
+    hud.toast('Run npm run dev for live disks — or use Browser pick…');
     triggerWebkitBrowse();
-  } else if (localDrivesAvailable) {
-    hud.toast('Picker unavailable — use Local drives');
-    void openLocalDrives();
   } else {
-    hud.toast('No folder picker here — use Local drives in npm run dev, or Demo');
+    hud.toast('Run via npm run dev to browse real disks');
   }
 }
 
-async function openLocalDrives() {
+async function openMyComputer(opts?: { autoLand?: boolean; quiet?: boolean }) {
   if (!localDrivesAvailable) {
-    hud.toast('Local drives only work with npm run dev');
+    hud.setStaticHint(true);
+    hud.toast('Run via npm run dev to browse real disks');
     return;
   }
   try {
+    clearTreeCache();
     const drives = await fetchDrives();
     if (!drives.length) {
-      hud.toast('No allowed drives found under /home /media /mnt /tmp');
+      hud.toast('No disks found under /home /media /mnt /tmp');
       return;
     }
-    // Add each drive as an orbit world (API stubs); keep any non-api worlds
-    const kept = worlds.filter((w) => w.source !== 'api');
+    const kept = worlds.filter((w) => !isLocalApiWorld(w));
     const apiWorlds = drives.map((d, i) => worldStubFromDrive(d, i));
     worlds = [...kept, ...apiWorlds];
+
+    const preferred = pickPreferredDrive(drives);
+    if (opts?.autoLand && preferred) {
+      const wr = apiWorlds.find((w) => w.path === preferred.path) ?? apiWorlds[0];
+      if (!opts.quiet) hud.toast(`My computer · landing on ${wr.name}`);
+      await landOnWorld(wr);
+      return;
+    }
+
     enterOrbit();
-    hud.toast(`${drives.length} local drives in orbit — click one to land`);
+    if (!opts?.quiet) {
+      hud.toast(`${drives.length} local disks · click one to land (My computer refreshes)`);
+    }
   } catch (e) {
     console.error(e);
-    hud.toast('Local drives failed');
+    hud.toast('Could not list local disks');
   }
 }
 
@@ -581,15 +595,25 @@ function frame() {
 void findFile;
 
 async function init() {
-  localDrivesAvailable = await probeLocalDrivesApi();
-  hud.setLocalDrivesVisible(localDrivesAvailable);
-
-  await bootDemo();
   requestAnimationFrame(frame);
+
+  localDrivesAvailable = await probeLocalDrivesApi();
+  hud.setLocalApiMode(localDrivesAvailable);
+
+  if (localDrivesAvailable) {
+    // Primary path: live ls via /api/drives + /api/tree — no upload / Open-folder gate
+    await openMyComputer({ autoLand: true });
+  } else {
+    // Static preview: one-line hint + optional demo — never push upload UI
+    worlds = [];
+    enterOrbit();
+    hud.setStaticHint(true);
+    hud.toast('Run via npm run dev to browse real disks');
+  }
 }
 
 init().catch((err) => {
   console.error(err);
-  hud.toast('Failed to load demo');
+  hud.toast('Boot failed');
   requestAnimationFrame(frame);
 });

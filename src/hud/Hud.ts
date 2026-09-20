@@ -12,7 +12,7 @@ export interface HudCallbacks {
   onSearchPick: (hit: SearchHit) => void;
   onOpenFolder: () => void;
   onBrowseFolder?: () => void;
-  onLocalDrives?: () => void;
+  onMyComputer?: () => void;
   onLoadDemo: () => void;
   onCloseEditor: () => void;
   onDepthHover: (index: number | null) => void;
@@ -50,13 +50,14 @@ export class Hud {
       const p = this.inspPath.textContent || '';
       cb.onCopyPath(p);
     };
-    document.getElementById('btn-open-folder')!.onclick = () => cb.onOpenFolder();
+    const openBtn = document.getElementById('btn-open-folder');
+    if (openBtn) openBtn.onclick = () => cb.onOpenFolder();
     const browseBtn = document.getElementById('btn-browse');
     if (browseBtn) browseBtn.onclick = () => cb.onBrowseFolder?.();
-    const drivesBtn = document.getElementById('btn-local-drives');
-    if (drivesBtn) {
-      drivesBtn.onclick = () => cb.onLocalDrives?.();
-      drivesBtn.classList.add('hidden'); // shown after probe
+    const myComp = document.getElementById('btn-my-computer');
+    if (myComp) {
+      myComp.onclick = () => cb.onMyComputer?.();
+      myComp.classList.add('hidden');
     }
     document.getElementById('btn-demo')!.onclick = () => cb.onLoadDemo();
     document.getElementById('editor-close')!.onclick = () => cb.onCloseEditor();
@@ -91,7 +92,7 @@ export class Hud {
       this.help.innerHTML =
         '<strong>Orbit</strong> · drag to orbit · scroll zoom · right-drag pan · click a world to land · Esc back';
       this.orbitHint.innerHTML =
-        'Free orbit · click a labeled world (<strong>C:</strong> <strong>D:</strong> <strong>E:</strong> …) to land';
+        'Free orbit · click a disk / world to land · <strong>My computer</strong> refreshes local disks';
     } else {
       this.help.innerHTML =
         '<strong>WASD</strong> move · <strong>Click view</strong> to look (Esc release) · RMB hold backup · click globe/gate · Shift run';
@@ -103,9 +104,20 @@ export class Hud {
     this.lookBanner.classList.toggle('hidden', !visible);
   }
 
-  setLocalDrivesVisible(on: boolean) {
-    const btn = document.getElementById('btn-local-drives');
+  /** Show My computer when Vite /api/drives is live; otherwise show static hint. */
+  setLocalApiMode(on: boolean) {
+    const btn = document.getElementById('btn-my-computer');
     if (btn) btn.classList.toggle('hidden', !on);
+    const hint = document.getElementById('api-hint');
+    if (hint) hint.classList.toggle('hidden', on);
+    // Demote advanced pickers further when live ls is available
+    const adv = document.getElementById('advanced-open');
+    if (adv) adv.classList.toggle('dimmed', on);
+  }
+
+  setStaticHint(on: boolean) {
+    const hint = document.getElementById('api-hint');
+    if (hint) hint.classList.toggle('hidden', !on);
   }
 
   renderPath(trail: AncestorRec[], view: FolderView | null) {

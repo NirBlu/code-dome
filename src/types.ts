@@ -51,7 +51,7 @@ export interface WorldRoot {
   tint: string;
   tree: TreeFolder;
   /** Where this world came from. */
-  source?: 'demo' | 'fsa' | 'webkit' | 'api';
+  source?: 'demo' | 'fsa' | 'webkit' | 'local-api' | 'api';
   /** Absolute host path for API-backed worlds (Vite /api/tree). */
   apiRoot?: string;
 }

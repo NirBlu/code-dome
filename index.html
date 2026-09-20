@@ -16,12 +16,18 @@
           <div id="counts"></div>
           <div id="depth-meter" title="Depth / membranes"></div>
           <input id="search" type="search" placeholder="Search cwd…" autocomplete="off" />
-          <button id="btn-open-folder" type="button" title="Map a local folder as a world (File System Access)">Open folder</button>
-          <button id="btn-browse" type="button" title="Browse via webkitdirectory (works in more browsers)">Browse…</button>
-          <button id="btn-local-drives" type="button" class="hidden" title="List real Linux drives via Vite dev bridge">Local drives</button>
-          <button id="btn-demo" type="button" title="Load multi-drive demo">Demo</button>
+          <button id="btn-my-computer" type="button" class="btn-primary hidden" title="Refresh real disks via /api/drives (ls)">
+            My computer
+          </button>
+          <button id="btn-demo" type="button" title="Optional fixture galaxy">Load demo galaxy</button>
+          <details id="advanced-open" class="advanced">
+            <summary title="Browser folder pickers (snapshot, not live ls)">Advanced</summary>
+            <button id="btn-open-folder" type="button" title="File System Access picker (one-shot snapshot)">Open folder…</button>
+            <button id="btn-browse" type="button" title="webkitdirectory picker (one-shot snapshot)">Browser pick…</button>
+          </details>
         </header>
         <input id="folder-input" type="file" webkitdirectory multiple class="hidden" tabindex="-1" aria-hidden="true" />
+        <div id="api-hint" class="hidden">Run via <code>npm run dev</code> to browse real disks</div>
         <aside id="inspector" class="hidden">
           <div id="inspector-head">
             <strong id="insp-name"></strong>

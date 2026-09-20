@@ -4,7 +4,7 @@ A 3D file viewer: **drives are worlds in space**, the current folder is a dome y
 
 Built from `CODE_DOME_BOT_SPEC.md`. File-manager first — no people, cars, weather, or multiplayer.
 
-## Run locally
+## Run locally (real disks)
 
 ```bash
 npm install
@@ -13,40 +13,34 @@ npm run dev
 
 Open the URL Vite prints (default `http://localhost:5173`).
 
-**Local drives** (real Linux paths) only work while `npm run dev` is running — the Vite plugin serves `/api/drives` and `/api/tree`. A static production build keeps Open folder / Browse / Demo.
+**My computer = ls API.** On boot, if `/api/drives` is available, Code Dome auto-loads your real mounts as orbit worlds and lands on a useful root (e.g. `/home/nirblu`). Folder navigation (enter globe, parent gate, path ribbon) calls `/api/tree?path=…` for fresh cwd JSON — true ls-backed views, not a one-shot upload snapshot.
 
-Production build:
+| Endpoint | Role |
+|---|---|
+| `GET /api/drives` | Lists mounts under `/home/*`, `/media/*`, `/mnt`, plus home/`/tmp` |
+| `GET /api/tree?path=` | FolderView-compatible JSON: files, folders, subtree counts, parent, depth, ancestors. Collapses `node_modules` / `.git` / `dist` / `build` |
+| `GET /api/file?path=` | Small text file contents for the editor pane |
+
+Security: only paths under `/home`, `/media`, `/mnt`, `/tmp`.
+
+Production / static preview (`npm run build` + `preview`) has no ls bridge — the HUD shows one line: *Run via npm run dev to browse real disks*, plus **Load demo galaxy**. Upload / Open-folder is never the primary path.
 
 ```bash
 npm run build
 npm run preview
 ```
 
-## Opening real folders / drives
+## UI
 
-| Button | When to use | How it works |
-|---|---|---|
-| **Open folder** | Chromium with File System Access | `showDirectoryPicker` → walks the picked directory into a world |
-| **Browse…** | Any browser with `webkitdirectory` | Hidden `<input webkitdirectory>` → tree from `webkitRelativePath` |
-| **Local drives** | `npm run dev` on Linux | `GET /api/drives` lists `/home/*`, `/media/*` mounts, `/mnt`, `/tmp`; land on one and navigate with `GET /api/tree?path=…` |
-| **Demo** | Always | Multi-drive fixture (`C:` `D:` `E:` `~`) |
-
-If **Open folder** has no picker API, the app does **not** silently load Demo — it offers **Browse…** / **Local drives** instead.
-
-Security for the dev bridge: only paths under `/home`, `/media`, `/mnt`, `/tmp`. Collapsed as sealed industrial globes: `node_modules`, `.git`, `dist`, `build`.
-
-## Demo galaxy (multi-drive)
-
-On load the app fetches `/demo-tree.json`. Orbit shows several labeled worlds:
-
-| World | Role |
+| Control | Role |
 |---|---|
-| **C:** | System-ish demo tree (`Users`, `Program Files`, …) |
-| **D:** | Dev project drive (demo stand-in — not your real D:) |
-| **E:** | External / media volume |
-| **~** | Home-style tree |
+| **My computer** | Refresh `/api/drives` and show local disks in orbit (primary in `npm run dev`) |
+| **Load demo galaxy** | Optional multi-drive fixture (`C:` `D:` `E:` `~`) |
+| **Advanced → Open folder… / Browser pick…** | One-shot browser snapshots (demoted; not live ls) |
 
-`D:` in the demo is only a **stand-in** so the galaxy isn’t a single mystery planet. Use **Open folder**, **Browse…**, or **Local drives** to map real folders.
+## Demo galaxy
+
+Optional fixture only. `D:` is a stand-in so the galaxy isn’t a single mystery planet. Prefer **My computer** for real paths.
 
 Landing puts you on that world’s **root** dome. Child folders are sealed globes; the parent gate / Esc climbs toward orbit.
 
@@ -71,7 +65,7 @@ Depth rings: `D: → project → src → components` = depths `0 → 1 → 2 →
 | Hold right mouse | Backup look without lock |
 | Left-drag | Also looks (clicks still select if you don’t drag) |
 | WASD · Shift | Walk · run |
-| Click child globe | Enter folder |
+| Click child globe | Enter folder (`/api/tree` when on local-api worlds) |
 | Click parent gate / Esc / Backspace | `cd ..` (or return to orbit at drive root) |
 | Click building | Select + inspector |
 | Double-click / Enter | Civic interior or editor pane |
@@ -98,4 +92,4 @@ Other readable types use typed closed shells; select them and use **Open in edit
 
 ## Stack
 
-Vite + TypeScript + Three.js · HTML/CSS HUD overlay · GLSL sky / glass · OrbitControls in galaxy · optional Vite local-FS middleware in dev.
+Vite + TypeScript + Three.js · HTML/CSS HUD overlay · GLSL sky / glass · OrbitControls in galaxy · Vite local-FS middleware in dev (`/api/drives`, `/api/tree`, `/api/file`).

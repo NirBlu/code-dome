@@ -69,16 +69,6 @@ html, body, #app { margin: 0; height: 100%; overflow: hidden; background: var(--
   padding: 6px 10px;
   font-size: 13px;
 }
-#btn-open-folder, #btn-demo, #insp-copy, #insp-actions button, #editor-close, #insp-close {
-  background: rgba(40,55,70,0.85);
-  border: 1px solid var(--border);
-  color: var(--text);
-  border-radius: 8px;
-  padding: 6px 10px;
-  font-size: 12px;
-  cursor: pointer;
-}
-#btn-open-folder:hover, #btn-demo:hover, #insp-actions button:hover { border-color: var(--accent); }
 
 #inspector {
   position: absolute; top: 64px; right: 14px; width: 300px;
@@ -195,4 +185,83 @@ html, body, #app { margin: 0; height: 100%; overflow: hidden; background: var(--
 #editor-body {
   margin: 0; padding: 12px; overflow: auto; font-size: 12px; line-height: 1.45;
   color: #d8e6f2; white-space: pre-wrap; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+/* Primary local-disks control */
+#btn-my-computer.btn-primary,
+#btn-demo,
+#btn-open-folder,
+#btn-browse,
+#insp-copy,
+#insp-actions button,
+#editor-close,
+#insp-close {
+  background: rgba(40,55,70,0.85);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 12px;
+  cursor: pointer;
+}
+#btn-my-computer.btn-primary {
+  background: rgba(40, 110, 150, 0.55);
+  border-color: var(--accent);
+  color: #e8f6ff;
+  font-weight: 600;
+}
+#btn-my-computer.btn-primary:hover,
+#btn-demo:hover,
+#insp-actions button:hover { border-color: var(--accent); }
+
+.advanced {
+  position: relative;
+  font-size: 11px;
+  color: var(--muted);
+}
+.advanced > summary {
+  cursor: pointer;
+  list-style: none;
+  padding: 6px 8px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  user-select: none;
+}
+.advanced > summary::-webkit-details-marker { display: none; }
+.advanced > summary:hover { border-color: var(--border); color: var(--text); }
+.advanced[open] > summary { border-color: var(--border); }
+.advanced[open] {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.advanced button {
+  font-size: 11px;
+  padding: 4px 8px;
+  opacity: 0.85;
+}
+
+#api-hint {
+  position: absolute;
+  left: 50%;
+  top: 56px;
+  transform: translateX(-50%);
+  font-size: 13px;
+  color: #c8dff0;
+  background: rgba(12, 24, 36, 0.9);
+  border: 1px solid #3a6080;
+  padding: 8px 14px;
+  border-radius: 10px;
+  z-index: 4;
+  pointer-events: none;
+}
+#api-hint code {
+  color: #9fd8ff;
+  font-size: 12px;
+}
+
+.advanced.dimmed > summary {
+  opacity: 0.55;
+  font-size: 10px;
 }
